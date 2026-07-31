@@ -24,12 +24,29 @@ instruction → policy → model plan → typed capability → resource handle
 - Renderers control public data and files.
 - Traces expose tool decisions without exposing hidden reasoning.
 
-## Run the prototype
+## Setup
 
-Requirements: Node.js 22 or newer.
+### Prerequisites
+
+- Node.js 22 or newer
+- Git
+- An OpenAI API key with access to the configured model
+
+Clone and install the pinned pnpm version:
 
 ```bash
+git clone https://github.com/waqqasiqbal/centrum.git
+cd centrum
 npx pnpm@10.14.0 install
+cp .env.example .env
+```
+
+Set `OPENAI_API_KEY` in `.env`. For local playground key discovery, leave
+`AI_ENABLE_DEMO_KEYS=true`. Never commit `.env` or anything under `.data/`.
+
+Seed two isolated demo tenants and start the API and playground:
+
+```bash
 npx pnpm@10.14.0 demo:seed
 npx pnpm@10.14.0 dev
 ```
@@ -38,15 +55,54 @@ Open [http://localhost:5173](http://localhost:5173). The playground discovers th
 two local development tenants created by the seed command.
 
 The prototype always uses a real LLM through the OpenAI Responses API. It intentionally
-has no scripted or non-LLM fallback:
+has no scripted or non-LLM runtime fallback. The default model is `gpt-5.6-terra` with
+medium reasoning; override it with `OPENAI_MODEL`.
+
+### Recommended Codex security skills
+
+The framework does not require agent skills at runtime. They are optional development
+tools used by Codex contributors for secure implementation and review. Skills are
+installed in each contributor's Codex home, so they are intentionally not copied into
+this repository.
+
+This project was reviewed with the following skills:
+
+| Skill | Source | Purpose |
+| --- | --- | --- |
+| `security-best-practices` | [`openai/skills`](https://github.com/openai/skills/tree/main/skills/.curated/security-best-practices) | TypeScript, React, and web-security baseline |
+| `code-security` | [`semgrep/skills`](https://github.com/semgrep/skills/tree/main/skills/code-security) | Secure coding and injection review |
+| `llm-security` | [`semgrep/skills`](https://github.com/semgrep/skills/tree/main/skills/llm-security) | OWASP LLM risks, agency, and output handling |
+| `api-security-review` | [`OWASP/secure-agent-playbook`](https://github.com/OWASP/secure-agent-playbook/tree/main/plugins/code-security-skills/skills/api-security-review) | OWASP API Security Top 10 review |
+
+Codex includes a system skill installer. Install the same reviewed skill set with:
 
 ```bash
-cp .env.example .env
-# Add OPENAI_API_KEY, then load the environment in your shell.
-npx pnpm@10.14.0 dev
+python3 "${CODEX_HOME:-$HOME/.codex}/skills/.system/skill-installer/scripts/install-skill-from-github.py" \
+  --repo openai/skills \
+  --path skills/.curated/security-best-practices
+
+python3 "${CODEX_HOME:-$HOME/.codex}/skills/.system/skill-installer/scripts/install-skill-from-github.py" \
+  --repo semgrep/skills \
+  --path skills/code-security skills/llm-security
+
+python3 "${CODEX_HOME:-$HOME/.codex}/skills/.system/skill-installer/scripts/install-skill-from-github.py" \
+  --repo OWASP/secure-agent-playbook \
+  --path plugins/code-security-skills/skills/api-security-review
 ```
 
-The default live model is `gpt-5.6-terra`; override it with `OPENAI_MODEL`.
+The installer refuses to overwrite an existing skill directory. Existing installations
+can be verified with:
+
+```bash
+for skill in security-best-practices code-security llm-security api-security-review; do
+  test -f "${CODEX_HOME:-$HOME/.codex}/skills/$skill/SKILL.md" && echo "$skill: installed"
+done
+```
+
+Restart Codex after first-time installation. The repository-level [AGENTS.md](AGENTS.md)
+contains the project rules that apply even when optional third-party skills are absent.
+The completed review is recorded in
+[security_best_practices_report.md](security_best_practices_report.md).
 
 ## Call the interface
 
@@ -101,10 +157,21 @@ npx pnpm@10.14.0 test
 npx pnpm@10.14.0 build
 ```
 
-`pnpm test` runs deterministic policy unit tests and then the mandatory live LLM
-end-to-end suite. It fails fast when `OPENAI_API_KEY` is absent. Use `pnpm test:unit`
-only when working on non-agent policy code. `evals/product-requests.json` contains 30
-representative and adversarial requests for broader live-model evaluation.
+`pnpm test` first builds the framework packages, then runs deterministic security and
+policy tests followed by the mandatory live LLM end-to-end suite. It fails fast when
+`OPENAI_API_KEY` is absent. `evals/product-requests.json` contains 30 representative and
+adversarial requests for broader live-model evaluation.
+
+For work that does not change agent behavior, run the package build before the focused
+unit suite:
+
+```bash
+npx pnpm@10.14.0 build:packages
+npx pnpm@10.14.0 test:unit
+```
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for capability-authoring expectations and
+[SECURITY.md](SECURITY.md) for vulnerability reporting and production caveats.
 
 ## Status
 
