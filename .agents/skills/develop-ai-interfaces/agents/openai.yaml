@@ -1,0 +1,14 @@
+interface:
+  display_name: Develop AI Interfaces
+  short_description: Build and test governed AI Interfaces safely
+  default_prompt: Use $develop-ai-interfaces to make a safe, tested improvement to
+    the AI Interfaces project.
+  icon_small: assets/icon.svg
+  icon_large: assets/icon.svg
+policy:
+  products:
+  - chatgpt
+  - codex
+  - api
+  - atlas
+  allow_implicit_invocation: true
