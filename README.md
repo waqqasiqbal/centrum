@@ -157,6 +157,9 @@ npx pnpm@10.14.0 test
 npx pnpm@10.14.0 build
 ```
 
+The latest local verification completed successfully: type checking, all package and
+playground builds, and all eight deterministic policy and security tests passed.
+
 `pnpm test` first builds the framework packages, then runs deterministic security and
 policy tests followed by the mandatory live LLM end-to-end suite. It fails fast when
 `OPENAI_API_KEY` is absent. `evals/product-requests.json` contains 30 representative and
