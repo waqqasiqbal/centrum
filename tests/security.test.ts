@@ -15,6 +15,49 @@ const principal = {
 };
 
 describe("security boundaries", () => {
+  it("requires an API key before executing a request", async () => {
+    const { app } = await createApp({
+      databasePath: ":memory:",
+      provider: neverProvider,
+      cursorSecret: "security-test-cursor-secret-32-bytes",
+      logger: false,
+    });
+    const response = await app.inject({
+      method: "POST",
+      url: "/v1/execute",
+      payload: { instruction: "List products as JSON" },
+    });
+
+    expect(response.statusCode).toBe(401);
+    expect(response.json()).toMatchObject({
+      status: "failed",
+      error: { code: "AUTHENTICATION_FAILED" },
+    });
+    await app.close();
+  });
+
+  it("rejects malformed requests before calling the provider", async () => {
+    const { app, demoKeys } = await createApp({
+      databasePath: ":memory:",
+      provider: neverProvider,
+      cursorSecret: "security-test-cursor-secret-32-bytes",
+      logger: false,
+    });
+    const response = await app.inject({
+      method: "POST",
+      url: "/v1/execute",
+      headers: { "x-ai-interface-key": demoKeys[0].apiKey },
+      payload: { instruction: "List products", unexpected: true },
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json()).toMatchObject({
+      status: "failed",
+      error: { code: "INVALID_REQUEST" },
+    });
+    await app.close();
+  });
+
   it("does not expose development keys unless explicitly enabled", async () => {
     const { app } = await createApp({
       databasePath: ":memory:",
