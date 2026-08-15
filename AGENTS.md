@@ -42,6 +42,21 @@ scope, validation, data access, rendering, auditing, and the response contract.
 - `tests`: deterministic boundary tests and real-OpenAI end-to-end tests.
 - `evals`: live-model paraphrase and adversarial request set.
 
+## Required project skill
+
+For implementation, review, debugging, testing, security, documentation, or pull-request
+work, read `.agents/skills/develop-ai-interfaces/SKILL.md` completely before acting. Read
+the linked architecture or validation reference when its routing instructions apply.
+
+On a fresh checkout, reproduce the supported development environment with:
+
+```bash
+bash .agents/skills/develop-ai-interfaces/scripts/bootstrap.sh
+```
+
+The repository skill is the portable contributor context. This `AGENTS.md` remains the
+authority when an agent runtime does not support skills directly.
+
 ## Development commands
 
 Use the repository-pinned pnpm version:

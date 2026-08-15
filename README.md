@@ -58,12 +58,30 @@ The prototype always uses a real LLM through the OpenAI Responses API. It intent
 has no scripted or non-LLM runtime fallback. The default model is `gpt-5.6-terra` with
 medium reasoning; override it with `OPENAI_MODEL`.
 
+### Contributor agent setup
+
+The repository includes a portable project skill at
+[`develop-ai-interfaces`](.agents/skills/develop-ai-interfaces/SKILL.md). It gives coding
+agents the architecture boundaries, package ownership, test-selection rules, and
+reproducible environment workflow needed to contribute safely.
+
+Agents must read [AGENTS.md](AGENTS.md), which routes project work to the skill and
+remains authoritative for runtimes that do not discover repository skills automatically.
+Bootstrap a fresh checkout with:
+
+```bash
+bash .agents/skills/develop-ai-interfaces/scripts/bootstrap.sh
+```
+
+Pass `--live` only when `OPENAI_API_KEY` is already configured and the change requires
+real-model behavioral validation.
+
 ### Recommended Codex security skills
 
 The framework does not require agent skills at runtime. They are optional development
 tools used by Codex contributors for secure implementation and review. Skills are
-installed in each contributor's Codex home, so they are intentionally not copied into
-this repository.
+installed in each contributor's Codex home. Unlike the repository-owned project skill,
+these optional third-party review skills are not copied into this repository.
 
 This project was reviewed with the following skills:
 
