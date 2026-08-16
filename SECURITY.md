@@ -15,6 +15,12 @@ The model does not receive credentials, tenant identifiers, raw SQL, file paths,
 mutation tools. Server-side policy and repositories remain the authority boundary.
 Treat model output as untrusted even when strict schemas are enabled.
 
+Persisted API management is a separate authenticated server operation, not a model
+tool. It accepts bounded JSON only, requires explicit key capabilities, scopes every
+lookup to the authenticated tenant, requires idempotency for creation, uses optimistic
+versions for updates, and records mutation history and audit events. Persisted routes
+remain authenticated; this prototype does not provide anonymous public endpoints.
+
 The development key-discovery endpoint requires `AI_ENABLE_DEMO_KEYS=true` and is
 unavailable under `NODE_ENV=production`.
 Never commit `.data`, `.env`, or generated API keys.

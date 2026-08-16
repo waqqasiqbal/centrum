@@ -8,6 +8,7 @@ export const errorCodes = [
   "RESULT_LIMIT_EXCEEDED",
   "MODEL_TIMEOUT",
   "RATE_LIMITED",
+  "CONFLICT",
   "INTERNAL_ERROR",
 ] as const;
 
