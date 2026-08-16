@@ -1,6 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
-import { randomBytes, randomUUID } from "node:crypto";
+import { createHash, randomBytes, randomUUID } from "node:crypto";
 import Fastify from "fastify";
 import cors from "@fastify/cors";
 import { z } from "zod";
@@ -34,6 +34,25 @@ const requestSchema = z
     options: z.object({ includeTrace: z.boolean().optional() }).strict().optional(),
   })
   .strict();
+
+const slugSchema = z.string().min(3).max(80).regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/);
+const createPersistedApiSchema = z
+  .object({
+    slug: slugSchema,
+    instruction: z.string().min(3).max(4_000),
+    published: z.boolean().default(true),
+  })
+  .strict();
+const updatePersistedApiSchema = z
+  .object({
+    expectedVersion: z.number().int().positive(),
+    responseBody: z.json().optional(),
+    published: z.boolean().optional(),
+  })
+  .strict()
+  .refine((value) => value.responseBody !== undefined || value.published !== undefined, {
+    message: "Provide responseBody or published.",
+  });
 
 export interface AppOptions {
   databasePath?: string;
@@ -76,6 +95,13 @@ export async function createApp(options: AppOptions = {}) {
   const runtime = new AIInterfaceRuntime({
     provider,
     capabilities,
+    policy: new ReadOnlyPolicy(),
+    maxIterations: 6,
+    timeoutMs: 30_000,
+  });
+  const builderRuntime = new AIInterfaceRuntime({
+    provider,
+    capabilities: capabilities.filter((capability) => capability.name !== "render_product_pdf"),
     policy: new ReadOnlyPolicy(),
     maxIterations: 6,
     timeoutMs: 30_000,
@@ -154,6 +180,162 @@ export async function createApp(options: AppOptions = {}) {
         err: error,
       });
       return reply.code(statusCode).send(envelope);
+    }
+  });
+
+  app.post("/v1/persisted-apis", async (request, reply) => {
+    const requestId = `req_${randomUUID()}`;
+    const startedAt = performance.now();
+    try {
+      limiter.consume(`ip:${request.ip}:persisted-manage`, 20, 60_000);
+      const principal = database.authenticate(getApiKey(request.headers["x-ai-interface-key"]));
+      requirePrincipalCapability(principal.capabilities, "manage_persisted_apis");
+      limiter.consume(`principal:${principal.id}:persisted-manage`, 10, 60_000);
+      const parsed = parseOrThrow(createPersistedApiSchema, request.body);
+      const idempotencyKey = getIdempotencyKey(request.headers["idempotency-key"]);
+      const requestHash = stableRequestHash(parsed);
+      const existing = database.findPersistedApiByIdempotency(
+        principal.tenantId,
+        idempotencyKey,
+        requestHash,
+      );
+      if (existing) {
+        reply.header("idempotency-replayed", "true");
+        return reply.code(200).send(persistedApiEnvelope(existing, requestId));
+      }
+      if (database.findPersistedApi(parsed.slug, principal.tenantId)) {
+        throw new AIInterfaceError(
+          "CONFLICT",
+          "A persisted API with this slug already exists.",
+          409,
+        );
+      }
+
+      request.log.info({
+        event: "persisted_api.build_started",
+        requestId,
+        tenantId: principal.tenantId,
+        slug: parsed.slug,
+      });
+      const built = await builderRuntime.execute(
+        {
+          instruction: `${parsed.instruction}\nReturn the result as JSON for a persisted API.`,
+          options: { includeTrace: false },
+        },
+        principal,
+        requestId,
+      );
+      if (built.output.kind !== "data" || built.output.mediaType !== "application/json") {
+        throw new AIInterfaceError(
+          "UNSUPPORTED_OUTPUT",
+          "Persisted APIs currently support JSON responses only.",
+        );
+      }
+      assertJsonSize(built.output.data);
+      const record = database.createPersistedApi({
+        tenantId: principal.tenantId,
+        principalId: principal.id,
+        slug: parsed.slug,
+        instruction: parsed.instruction,
+        responseBody: built.output.data,
+        published: parsed.published,
+        idempotencyKey,
+        requestHash,
+      });
+      request.log.info({
+        event: "persisted_api.created",
+        requestId,
+        tenantId: principal.tenantId,
+        apiId: record.id,
+        version: record.version,
+        durationMs: Math.round(performance.now() - startedAt),
+      });
+      return reply.code(201).send(persistedApiEnvelope(record, requestId));
+    } catch (error) {
+      return sendError(reply, error, requestId, startedAt);
+    }
+  });
+
+  app.get("/v1/persisted-apis", async (request, reply) => {
+    const requestId = `req_${randomUUID()}`;
+    const startedAt = performance.now();
+    try {
+      const principal = database.authenticate(getApiKey(request.headers["x-ai-interface-key"]));
+      requirePrincipalCapability(principal.capabilities, "manage_persisted_apis");
+      return {
+        protocolVersion: "1.0",
+        requestId,
+        status: "completed",
+        apis: database.listPersistedApis(principal.tenantId),
+      };
+    } catch (error) {
+      return sendError(reply, error, requestId, startedAt);
+    }
+  });
+
+  app.get<{ Params: { slug: string } }>("/v1/persisted-apis/:slug", async (request, reply) => {
+    const requestId = `req_${randomUUID()}`;
+    const startedAt = performance.now();
+    try {
+      const principal = database.authenticate(getApiKey(request.headers["x-ai-interface-key"]));
+      requirePrincipalCapability(principal.capabilities, "manage_persisted_apis");
+      const slug = parseOrThrow(slugSchema, request.params.slug);
+      const record = database.findPersistedApi(slug, principal.tenantId);
+      if (!record) throw new AIInterfaceError("INVALID_REQUEST", "Persisted API not found.", 404);
+      return persistedApiEnvelope(record, requestId);
+    } catch (error) {
+      return sendError(reply, error, requestId, startedAt);
+    }
+  });
+
+  app.put<{ Params: { slug: string } }>("/v1/persisted-apis/:slug", async (request, reply) => {
+    const requestId = `req_${randomUUID()}`;
+    const startedAt = performance.now();
+    try {
+      limiter.consume(`ip:${request.ip}:persisted-manage`, 20, 60_000);
+      const principal = database.authenticate(getApiKey(request.headers["x-ai-interface-key"]));
+      requirePrincipalCapability(principal.capabilities, "manage_persisted_apis");
+      limiter.consume(`principal:${principal.id}:persisted-manage`, 10, 60_000);
+      const slug = parseOrThrow(slugSchema, request.params.slug);
+      const parsed = parseOrThrow(updatePersistedApiSchema, request.body);
+      if (parsed.responseBody !== undefined) assertJsonSize(parsed.responseBody);
+      const record = database.updatePersistedApi({
+        tenantId: principal.tenantId,
+        principalId: principal.id,
+        slug,
+        expectedVersion: parsed.expectedVersion,
+        ...(parsed.responseBody !== undefined ? { responseBody: parsed.responseBody } : {}),
+        ...(parsed.published !== undefined ? { published: parsed.published } : {}),
+      });
+      request.log.info({
+        event: "persisted_api.updated",
+        requestId,
+        tenantId: principal.tenantId,
+        apiId: record.id,
+        version: record.version,
+      });
+      return persistedApiEnvelope(record, requestId);
+    } catch (error) {
+      return sendError(reply, error, requestId, startedAt);
+    }
+  });
+
+  app.get<{ Params: { slug: string } }>("/v1/persisted/:slug", async (request, reply) => {
+    const requestId = `req_${randomUUID()}`;
+    const startedAt = performance.now();
+    try {
+      limiter.consume(`ip:${request.ip}:persisted-invoke`, 120, 60_000);
+      const principal = database.authenticate(getApiKey(request.headers["x-ai-interface-key"]));
+      requirePrincipalCapability(principal.capabilities, "invoke_persisted_apis");
+      limiter.consume(`principal:${principal.id}:persisted-invoke`, 60, 60_000);
+      const slug = parseOrThrow(slugSchema, request.params.slug);
+      const record = database.findPersistedApi(slug, principal.tenantId, true);
+      if (!record) throw new AIInterfaceError("INVALID_REQUEST", "Persisted API not found.", 404);
+      reply.header("x-ai-interface-request-id", requestId);
+      reply.header("x-persisted-api-version", String(record.version));
+      return reply.code(200).send(record.responseBody);
+    } catch (error) {
+      return sendError(reply, error, requestId, startedAt);
     }
   });
 
@@ -262,6 +444,83 @@ function getApiKey(value: string | string[] | undefined) {
     );
   }
   return value;
+}
+
+function getIdempotencyKey(value: string | string[] | undefined) {
+  if (!value || Array.isArray(value) || value.length < 8 || value.length > 200) {
+    throw new AIInterfaceError(
+      "INVALID_REQUEST",
+      "Provide an Idempotency-Key between 8 and 200 characters.",
+      400,
+    );
+  }
+  return value;
+}
+
+function requirePrincipalCapability(capabilities: string[], required: string) {
+  if (!capabilities.includes(required)) {
+    throw new AIInterfaceError("POLICY_DENIED", "This API key cannot perform that action.", 403);
+  }
+}
+
+function parseOrThrow<T>(schema: z.ZodType<T>, value: unknown): T {
+  const parsed = schema.safeParse(value);
+  if (!parsed.success) {
+    throw new AIInterfaceError("INVALID_REQUEST", "The request is invalid.", 400, {
+      issues: parsed.error.issues.map(({ path: issuePath, message }) => ({
+        path: issuePath,
+        message,
+      })),
+    });
+  }
+  return parsed.data;
+}
+
+function stableRequestHash(value: unknown) {
+  return createHash("sha256").update(JSON.stringify(value)).digest("hex");
+}
+
+function assertJsonSize(value: unknown) {
+  if (Buffer.byteLength(JSON.stringify(value)) > 64 * 1024) {
+    throw new AIInterfaceError(
+      "RESULT_LIMIT_EXCEEDED",
+      "Persisted API responses are limited to 64 KiB.",
+      413,
+    );
+  }
+}
+
+function persistedApiEnvelope(
+  record: import("@ai-interfaces/catalog").PersistedApiRecord,
+  requestId: string,
+) {
+  return {
+    protocolVersion: "1.0" as const,
+    requestId,
+    status: "completed" as const,
+    api: {
+      id: record.id,
+      slug: record.slug,
+      instruction: record.instruction,
+      responseBody: record.responseBody,
+      version: record.version,
+      published: record.published,
+      invokeUrl: `/v1/persisted/${record.slug}`,
+      createdAt: record.createdAt,
+      updatedAt: record.updatedAt,
+    },
+  };
+}
+
+function sendError(
+  reply: { code(statusCode: number): { send(payload: unknown): unknown } },
+  error: unknown,
+  requestId: string,
+  startedAt: number,
+) {
+  const envelope = toErrorEnvelope(error, requestId, Math.round(performance.now() - startedAt));
+  const statusCode = error instanceof AIInterfaceError ? error.statusCode : 500;
+  return reply.code(statusCode).send(envelope);
 }
 
 function writeDemoKeys(databasePath: string, keys: ReturnType<typeof seedDemo>) {
