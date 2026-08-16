@@ -21,7 +21,9 @@ Never commit `.data`, `.env`, or generated API keys.
 
 ## Reporting
 
-Do not open public issues for vulnerabilities. Until a dedicated security address is
-published, use the repository host's private vulnerability-reporting feature.
+Do not open public issues for vulnerabilities. Use GitHub's private vulnerability
+reporting flow from the repository Security tab. Include affected versions, impact,
+reproduction details, and a proposed mitigation when available. Remove real tenant data,
+API keys, and credentials from every report.
 
 Supported security fixes target the latest `0.1.x` release.

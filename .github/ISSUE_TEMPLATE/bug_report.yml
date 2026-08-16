@@ -1,0 +1,45 @@
+name: Bug report
+description: Report a reproducible defect in AI Interfaces
+title: "[Bug]: "
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: Thanks for helping improve AI Interfaces. Do not include secrets or vulnerability details here.
+  - type: checkboxes
+    attributes:
+      label: Preflight checks
+      options:
+        - label: I searched existing issues for this problem.
+          required: true
+        - label: This is not a security vulnerability.
+          required: true
+  - type: input
+    attributes:
+      label: Version or commit
+      placeholder: 0.1.0 or commit SHA
+    validations:
+      required: true
+  - type: input
+    attributes:
+      label: Environment
+      description: Include Node.js version, operating system, and package manager version.
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: Steps to reproduce
+      description: Provide the smallest reliable reproduction.
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: Actual behavior and sanitized logs
+      description: Remove API keys, tenant data, environment values, and credentials.
+    validations:
+      required: true

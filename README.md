@@ -41,8 +41,9 @@ npx pnpm@10.14.0 install
 cp .env.example .env
 ```
 
-Set `OPENAI_API_KEY` in `.env`. For local playground key discovery, leave
-`AI_ENABLE_DEMO_KEYS=true`. Never commit `.env` or anything under `.data/`.
+Set `OPENAI_API_KEY` in `.env` before starting the server or running live-model tests.
+For local playground key discovery, leave `AI_ENABLE_DEMO_KEYS=true`. The checked-in
+example contains no credentials. Never commit `.env` or anything under `.data/`.
 
 Seed two isolated demo tenants and start the API and playground:
 
@@ -169,19 +170,22 @@ See [SECURITY.md](SECURITY.md) before adapting this prototype for production.
 
 ## Verification
 
+Run the deterministic contributor matrix without an API key:
+
 ```bash
+npx pnpm@10.14.0 build:packages
 npx pnpm@10.14.0 typecheck
-npx pnpm@10.14.0 test
-npx pnpm@10.14.0 build
+npx pnpm@10.14.0 test:unit
+npx pnpm@10.14.0 --filter @ai-interfaces/playground build
 ```
 
 The latest local verification completed successfully: type checking, all package and
-playground builds, and all eight deterministic policy and security tests passed.
+playground builds, and all 17 deterministic policy, runtime, catalog, and security tests
+passed.
 
-`pnpm test` first builds the framework packages, then runs deterministic security and
-policy tests followed by the mandatory live LLM end-to-end suite. It fails fast when
-`OPENAI_API_KEY` is absent. `evals/product-requests.json` contains 30 representative and
-adversarial requests for broader live-model evaluation.
+When model behavior changes, set `OPENAI_API_KEY` and run `npx pnpm@10.14.0 test:llm`.
+The live suite fails clearly when the key is absent. `evals/product-requests.json`
+contains 30 representative and adversarial requests for broader live-model evaluation.
 
 For work that does not change agent behavior, run the package build before the focused
 unit suite:
@@ -193,6 +197,14 @@ npx pnpm@10.14.0 test:unit
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for capability-authoring expectations and
 [SECURITY.md](SECURITY.md) for vulnerability reporting and production caveats.
+
+## Community
+
+- Read [CONTRIBUTING.md](CONTRIBUTING.md) before proposing a change.
+- Follow the [Code of Conduct](CODE_OF_CONDUCT.md).
+- Use [SUPPORT.md](SUPPORT.md) for help and sanitized reproduction guidance.
+- Review [GOVERNANCE.md](GOVERNANCE.md) for decision-making and maintainer roles.
+- Report vulnerabilities privately according to [SECURITY.md](SECURITY.md).
 
 ## Status
 
