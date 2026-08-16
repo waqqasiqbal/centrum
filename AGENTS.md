@@ -57,6 +57,13 @@ bash .agents/skills/develop-ai-interfaces/scripts/bootstrap.sh
 The repository skill is the portable contributor context. This `AGENTS.md` remains the
 authority when an agent runtime does not support skills directly.
 
+## Mobile collaboration
+
+When a contributor says they are working from a phone or mobile device, read
+`.agents/skills/work-from-mobile/SKILL.md` completely before continuing. Prefer
+connected repository apps, minimal typing, and direct tappable links while preserving
+the same validation and safety requirements.
+
 ## Development commands
 
 Use the repository-pinned pnpm version:
