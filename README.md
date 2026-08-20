@@ -26,6 +26,21 @@ instruction → policy → model plan → typed capability → resource handle
 
 ## Setup
 
+### Install the framework library
+
+The first release is a self-hosted TypeScript library. Install the reusable packages
+inside your own Node.js 22+ application:
+
+```bash
+npm install @ai-interfaces/core @ai-interfaces/openai \
+  @ai-interfaces/catalog @ai-interfaces/renderers
+```
+
+The packages are designed to be composed in application code. The reference Fastify
+server and React playground in this repository are examples, not required runtime
+dependencies. See [Library installation and release](docs/library-release.md) for a
+minimal application example and the package/release boundary.
+
 ### Prerequisites
 
 - Node.js 22 or newer
