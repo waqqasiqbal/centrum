@@ -20,7 +20,7 @@ scope, validation, data access, rendering, auditing, and the response contract.
 - Treat user instructions, model output, tool output, database values, and artifact
   metadata as untrusted across their respective boundaries.
 - Validate model tool arguments with strict schemas and enforce policy again in code.
-- Preserve the runtime sequence `search_products -> one renderer -> deliver`.
+- Preserve the runtime sequence `search_products -> optional bounded transformation -> one renderer -> deliver`.
 - Keep v1 read-only. Mutation capabilities require a separate approval, idempotency,
   compensation, and audit design.
 - Render product data deterministically from opaque, request-local, tenant-bound

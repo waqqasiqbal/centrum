@@ -23,7 +23,7 @@ import {
   seedDemo,
   type PersistedApiPlan,
 } from "@ai-interfaces/catalog";
-import { createRendererCapabilities } from "@ai-interfaces/renderers";
+import { createRendererCapabilities, transformJsonInputSchema } from "@ai-interfaces/renderers";
 import { OpenAIResponsesProvider } from "@ai-interfaces/openai";
 
 const requestSchema = z
@@ -59,6 +59,9 @@ const updatePersistedApiSchema = z
         search: searchProductsInputSchema,
       })
       .strict()
+      .extend({
+        transform: transformJsonInputSchema.shape.pipeline.optional(),
+      })
       .optional(),
     published: z.boolean().optional(),
   })
@@ -71,6 +74,7 @@ const persistedApiPlanSchema = z
     version: z.literal(1),
     renderer: z.literal("json"),
     search: searchProductsInputSchema,
+    transform: transformJsonInputSchema.shape.pipeline.optional(),
   })
   .strict();
 
@@ -428,7 +432,20 @@ function compilePersistedPlan(trace: unknown): PersistedApiPlan {
       "The requested API could not be compiled into a supported deterministic plan.",
     );
   }
-  return persistedApiPlanSchema.parse({ version: 1, renderer: "json", search });
+  const transform = toolCalls.find((event) => event.name === "transform_json")?.arguments;
+  const parsedTransform = transform
+    ? transformJsonInputSchema.shape.pipeline.parse(
+        typeof transform === "object" && transform !== null && "pipeline" in transform
+          ? transform.pipeline
+          : undefined,
+      )
+    : undefined;
+  return persistedApiPlanSchema.parse({
+    version: 1,
+    renderer: "json",
+    search,
+    ...(parsedTransform ? { transform: parsedTransform } : {}),
+  });
 }
 
 async function executePersistedPlan(
@@ -438,9 +455,10 @@ async function executePersistedPlan(
   instruction: string,
 ): Promise<DeliveryValue> {
   const search = capabilities.get("search_products");
+  const transform = capabilities.get("transform_json");
   const render = capabilities.get("deliver_json");
   const deliver = capabilities.get("deliver");
-  if (!search || !render || !deliver) {
+  if (!search || !render || !deliver || (plan.transform && !transform)) {
     throw new AIInterfaceError("INTERNAL_ERROR", "The persisted API runtime is incomplete.", 500);
   }
   const resources = new ResourceStore();
@@ -455,7 +473,14 @@ async function executePersistedPlan(
   };
   try {
     const searchResult = await search.execute(plan.search, context);
-    const searchHandle = requireHandle(searchResult, "search_products");
+    let searchHandle = requireHandle(searchResult, "search_products");
+    if (plan.transform) {
+      const transformed = await transform!.execute(
+        { resultHandleId: searchHandle, pipeline: plan.transform },
+        context,
+      );
+      searchHandle = requireHandle(transformed, "transform_json");
+    }
     const renderResult = await render.execute({ resultHandleId: searchHandle }, context);
     const renderHandle = requireHandle(renderResult, "deliver_json");
     const deliveryResult = await deliver.execute({ handleId: renderHandle }, context);
