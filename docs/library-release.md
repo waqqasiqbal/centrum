@@ -7,7 +7,7 @@ and non-TypeScript SDKs are later products.
 
 ## Consumer prerequisites
 
-- Node.js 22 or newer (the catalog uses `node:sqlite`)
+- Node.js 24 LTS or newer (the catalog uses `node:sqlite`)
 - An ESM-compatible TypeScript or JavaScript application
 - An OpenAI API key for the OpenAI provider
 - A production secret manager for API keys and cursor/artifact secrets

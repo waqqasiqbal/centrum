@@ -29,7 +29,7 @@ instruction → policy → model plan → typed capability → resource handle
 ### Install the framework library
 
 The first release is a self-hosted TypeScript library. Install the reusable packages
-inside your own Node.js 22+ application:
+inside your own Node.js 24+ application:
 
 ```bash
 npm install @ai-interfaces/core @ai-interfaces/openai \
@@ -43,7 +43,7 @@ minimal application example and the package/release boundary.
 
 ### Prerequisites
 
-- Node.js 22 or newer
+- Node.js 24 LTS or newer
 - Git
 - An OpenAI API key with access to the configured model
 

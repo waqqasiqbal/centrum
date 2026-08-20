@@ -10,7 +10,7 @@ Coding agents must read [AGENTS.md](AGENTS.md) and the repository-owned
 making changes. On a fresh checkout, the skill's bootstrap script reproduces the pinned
 dependency, build, type-check, deterministic test, and playground validation workflow.
 
-1. Install Node.js 22 or newer.
+1. Install Node.js 24 LTS or newer.
 2. Run `npx pnpm@10.14.0 install`.
 3. Run `npx pnpm@10.14.0 demo:seed`.
 4. Make focused changes with tests.

@@ -17,8 +17,8 @@ if [[ ! -f "$repository_path/package.json" ]] || \
 fi
 
 node_major="$(node -p 'Number(process.versions.node.split(".")[0])')"
-if (( node_major < 22 )); then
-  echo "Node.js 22 or newer is required; found $(node --version)." >&2
+if (( node_major < 24 )); then
+  echo "Node.js 24 LTS or newer is required; found $(node --version)." >&2
   exit 1
 fi
 
