@@ -129,6 +129,33 @@ describe("persisted APIs", () => {
     });
     expect(provider.calls).toBe(3);
 
+    const transformed = await app.inject({
+      method: "PUT",
+      url: "/v1/persisted-apis/editable-products",
+      headers: { "x-ai-interface-key": apiKey },
+      payload: {
+        expectedVersion: 2,
+        plan: {
+          ...updated.json().api.plan,
+          transform: {
+            version: 1,
+            language: "json-pipeline-v1",
+            steps: [{ op: "rename", from: "name", to: "productName" }],
+          },
+        },
+      },
+    });
+    expect(transformed.statusCode).toBe(200);
+    const invocation = await app.inject({
+      method: "GET",
+      url: "/v1/persisted/editable-products",
+      headers: { "x-ai-interface-key": apiKey },
+    });
+    expect(invocation.statusCode).toBe(200);
+    expect(invocation.json()[0]).toHaveProperty("productName");
+    expect(invocation.json()[0]).not.toHaveProperty("name");
+    expect(provider.calls).toBe(3);
+
     const stale = await app.inject({
       method: "PUT",
       url: "/v1/persisted-apis/editable-products",
@@ -141,7 +168,7 @@ describe("persisted APIs", () => {
       database.db
         .prepare("SELECT COUNT(*) as count FROM persisted_api_versions")
         .get(),
-    ).toMatchObject({ count: 2 });
+    ).toMatchObject({ count: 3 });
     await app.close();
   });
 
@@ -172,15 +199,41 @@ describe("persisted APIs", () => {
     expect(otherTenant.json()).toMatchObject({ error: { code: "INVALID_REQUEST" } });
     await app.close();
   });
+
+  it("persists a model-selected transformation pipeline", async () => {
+    const provider = createJsonProvider(true);
+    const { app, demoKeys } = await createApp({
+      databasePath: ":memory:",
+      provider,
+      cursorSecret: "persisted-api-test-cursor-secret-32-bytes",
+      logger: false,
+    });
+    const created = await app.inject({
+      method: "POST",
+      url: "/v1/persisted-apis",
+      headers: {
+        "x-ai-interface-key": demoKeys[0].apiKey,
+        "idempotency-key": "build-transformed-products-1",
+      },
+      payload: { slug: "transformed-products", instruction: "Return product names as productName JSON" },
+    });
+    expect(created.statusCode).toBe(201);
+    expect(created.json().api.plan.transform).toMatchObject({
+      language: "json-pipeline-v1",
+      steps: [{ op: "rename", from: "name", to: "productName" }],
+    });
+    expect(provider.calls).toBe(4);
+    await app.close();
+  });
 });
 
-function createJsonProvider(): AgentProvider & { calls: number } {
+function createJsonProvider(withTransform = false): AgentProvider & { calls: number } {
   return {
     name: "persisted-api-test-provider",
     calls: 0,
     async run(input) {
       this.calls += 1;
-      if (this.calls % 3 === 1) {
+      if (this.calls % (withTransform ? 4 : 3) === 1) {
         return {
           responseId: `response_${this.calls}`,
           model: "test-model",
@@ -200,7 +253,27 @@ function createJsonProvider(): AgentProvider & { calls: number } {
         };
       }
       const handleId = readHandle(input.toolResults);
-      if (this.calls % 3 === 2) {
+      if (withTransform && this.calls % 4 === 2) {
+        return {
+          responseId: `response_${this.calls}`,
+          model: "test-model",
+          toolCalls: [
+            {
+              id: `call_${this.calls}`,
+              name: "transform_json",
+              arguments: {
+                resultHandleId: handleId,
+                pipeline: {
+                  version: 1,
+                  language: "json-pipeline-v1",
+                  steps: [{ op: "rename", from: "name", to: "productName" }],
+                },
+              },
+            },
+          ],
+        };
+      }
+      if ((withTransform ? this.calls % 4 === 3 : this.calls % 3 === 2)) {
         return {
           responseId: `response_${this.calls}`,
           model: "test-model",
