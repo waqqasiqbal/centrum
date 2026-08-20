@@ -19,7 +19,7 @@ const filterSchema = z
     value: z.union([z.string(), z.number(), z.boolean()]),
   })
   .strict();
-const searchSchema = z
+export const searchProductsInputSchema = z
   .object({
     filters: z.array(filterSchema).max(10).default([]),
     sort: z
@@ -43,12 +43,12 @@ export interface ProductSet {
 export function createSearchProductsCapability(
   database: CatalogDatabase,
   cursorSecret: string,
-): Capability<z.infer<typeof searchSchema>> {
+): Capability<z.infer<typeof searchProductsInputSchema>> {
   return {
     name: "search_products",
     description:
       "Query the authenticated tenant's product catalog using allowlisted filters and stable pagination. Tenant scope is injected by the runtime.",
-    inputSchema: searchSchema,
+    inputSchema: searchProductsInputSchema,
     parameters: searchParameters,
     async execute(input, context) {
       validateFilters(input.filters);
@@ -116,7 +116,7 @@ function validateFilters(filters: z.infer<typeof filterSchema>[]) {
 
 function buildQuery(
   tenantId: string,
-  input: z.infer<typeof searchSchema>,
+  input: z.infer<typeof searchProductsInputSchema>,
   cursor?: { value: unknown; id: string },
 ) {
   const column = columnMap[input.sort.field];

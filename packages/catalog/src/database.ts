@@ -36,6 +36,7 @@ export interface PersistedApiRecord {
   tenantId: string;
   slug: string;
   instruction: string;
+  plan: PersistedApiPlan | null;
   responseBody: unknown;
   version: number;
   published: boolean;
@@ -43,7 +44,20 @@ export interface PersistedApiRecord {
   updatedAt: string;
 }
 
-export interface PersistedApiSummary extends Omit<PersistedApiRecord, "responseBody"> {}
+export interface PersistedApiPlan {
+  version: 1;
+  renderer: "json";
+  search: {
+    filters: Array<{ field: string; operator: string; value: string | number | boolean }>;
+    sort: { field: string; direction: "asc" | "desc" };
+    limit: number;
+    projection: string[];
+    cursor?: string | null;
+  };
+}
+
+export interface PersistedApiSummary
+  extends Omit<PersistedApiRecord, "responseBody" | "plan"> {}
 
 export class CatalogDatabase {
   readonly db: InstanceType<typeof DatabaseSync>;
@@ -98,6 +112,7 @@ export class CatalogDatabase {
         tenant_id TEXT NOT NULL REFERENCES tenants(id),
         slug TEXT NOT NULL,
         instruction TEXT NOT NULL,
+        plan_json TEXT,
         response_json TEXT NOT NULL,
         version INTEGER NOT NULL,
         published INTEGER NOT NULL,
@@ -108,6 +123,7 @@ export class CatalogDatabase {
       CREATE TABLE IF NOT EXISTS persisted_api_versions (
         api_id TEXT NOT NULL REFERENCES persisted_apis(id),
         version INTEGER NOT NULL,
+        plan_json TEXT,
         response_json TEXT NOT NULL,
         published INTEGER NOT NULL,
         change_source TEXT NOT NULL,
@@ -135,6 +151,15 @@ export class CatalogDatabase {
       CREATE INDEX IF NOT EXISTS idx_persisted_apis_tenant_updated
         ON persisted_apis(tenant_id, updated_at DESC);
     `);
+    this.addColumnIfMissing("persisted_apis", "plan_json", "TEXT");
+    this.addColumnIfMissing("persisted_api_versions", "plan_json", "TEXT");
+  }
+
+  private addColumnIfMissing(table: string, column: string, definition: string) {
+    const columns = this.db.prepare(`PRAGMA table_info(${table})`).all() as Array<{ name: string }>;
+    if (!columns.some((item) => item.name === column)) {
+      this.db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${definition}`);
+    }
   }
 
   authenticate(apiKey: string): Principal {
@@ -219,6 +244,7 @@ export class CatalogDatabase {
     principalId: string;
     slug: string;
     instruction: string;
+    plan: PersistedApiPlan;
     responseBody: unknown;
     published: boolean;
     idempotencyKey: string;
@@ -226,20 +252,22 @@ export class CatalogDatabase {
   }): PersistedApiRecord {
     const now = new Date().toISOString();
     const id = `api_${randomUUID()}`;
+    const planJson = JSON.stringify(input.plan);
     const responseJson = JSON.stringify(input.responseBody);
     this.db.exec("BEGIN IMMEDIATE");
     try {
       this.db
         .prepare(
           `INSERT INTO persisted_apis
-            (id, tenant_id, slug, instruction, response_json, version, published, created_at, updated_at)
-           VALUES (?, ?, ?, ?, ?, 1, ?, ?, ?)`,
+            (id, tenant_id, slug, instruction, plan_json, response_json, version, published, created_at, updated_at)
+           VALUES (?, ?, ?, ?, ?, ?, 1, ?, ?, ?)`,
         )
         .run(
           id,
           input.tenantId,
           input.slug,
           input.instruction,
+          planJson,
           responseJson,
           Number(input.published),
           now,
@@ -248,10 +276,10 @@ export class CatalogDatabase {
       this.db
         .prepare(
           `INSERT INTO persisted_api_versions
-            (api_id, version, response_json, published, change_source, changed_by, created_at)
-           VALUES (?, 1, ?, ?, 'llm', ?, ?)`,
+            (api_id, version, plan_json, response_json, published, change_source, changed_by, created_at)
+           VALUES (?, 1, ?, ?, ?, 'llm', ?, ?)`,
         )
-        .run(id, responseJson, Number(input.published), input.principalId, now);
+        .run(id, planJson, responseJson, Number(input.published), input.principalId, now);
       this.db
         .prepare(
           `INSERT INTO persisted_api_idempotency
@@ -285,7 +313,8 @@ export class CatalogDatabase {
   findPersistedApi(slug: string, tenantId: string, publishedOnly = false) {
     const row = this.db
       .prepare(
-        `SELECT id, tenant_id as tenantId, slug, instruction, response_json as responseJson,
+        `SELECT id, tenant_id as tenantId, slug, instruction, plan_json as planJson,
+                response_json as responseJson,
                 version, published, created_at as createdAt, updated_at as updatedAt
            FROM persisted_apis
           WHERE slug = ? AND tenant_id = ?${publishedOnly ? " AND published = 1" : ""}`,
@@ -299,6 +328,7 @@ export class CatalogDatabase {
     principalId: string;
     slug: string;
     expectedVersion: number;
+    plan?: PersistedApiPlan;
     responseBody?: unknown;
     published?: boolean;
   }): PersistedApiRecord {
@@ -312,20 +342,23 @@ export class CatalogDatabase {
         { currentVersion: current.version },
       );
     }
+    const plan = input.plan === undefined ? current.plan : input.plan;
     const responseBody = input.responseBody === undefined ? current.responseBody : input.responseBody;
     const published = input.published ?? current.published;
     const nextVersion = current.version + 1;
     const now = new Date().toISOString();
     const responseJson = JSON.stringify(responseBody);
+    const planJson = plan ? JSON.stringify(plan) : null;
     this.db.exec("BEGIN IMMEDIATE");
     try {
       const result = this.db
         .prepare(
           `UPDATE persisted_apis
-              SET response_json = ?, published = ?, version = ?, updated_at = ?
+              SET plan_json = ?, response_json = ?, published = ?, version = ?, updated_at = ?
             WHERE id = ? AND tenant_id = ? AND version = ?`,
         )
         .run(
+          planJson,
           responseJson,
           Number(published),
           nextVersion,
@@ -340,10 +373,10 @@ export class CatalogDatabase {
       this.db
         .prepare(
           `INSERT INTO persisted_api_versions
-            (api_id, version, response_json, published, change_source, changed_by, created_at)
-           VALUES (?, ?, ?, ?, 'manual', ?, ?)`,
+            (api_id, version, plan_json, response_json, published, change_source, changed_by, created_at)
+           VALUES (?, ?, ?, ?, ?, 'manual', ?, ?)`,
         )
-        .run(current.id, nextVersion, responseJson, Number(published), input.principalId, now);
+        .run(current.id, nextVersion, planJson, responseJson, Number(published), input.principalId, now);
       this.insertPersistedApiAudit(
         input.tenantId,
         input.principalId,
@@ -363,7 +396,8 @@ export class CatalogDatabase {
   private findPersistedApiById(id: string, tenantId: string) {
     const row = this.db
       .prepare(
-        `SELECT id, tenant_id as tenantId, slug, instruction, response_json as responseJson,
+        `SELECT id, tenant_id as tenantId, slug, instruction, plan_json as planJson,
+                response_json as responseJson,
                 version, published, created_at as createdAt, updated_at as updatedAt
            FROM persisted_apis WHERE id = ? AND tenant_id = ?`,
       )
@@ -399,6 +433,7 @@ function normalizePersistedApi(row: Record<string, unknown>): PersistedApiRecord
     tenantId: String(row.tenantId),
     slug: String(row.slug),
     instruction: String(row.instruction),
+    plan: row.planJson ? JSON.parse(String(row.planJson)) as PersistedApiPlan : null,
     responseBody: JSON.parse(String(row.responseJson)) as unknown,
     version: Number(row.version),
     published: Boolean(row.published),

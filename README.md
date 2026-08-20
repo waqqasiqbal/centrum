@@ -7,6 +7,19 @@ result, and returns a versioned response envelope.
 
 The reference prototype supports tenant-scoped product queries as JSON or PDF.
 
+
+## The motivation behind Centrum
+
+Most APIs are static: they expose fixed endpoints, accept predefined inputs, and return predefined outputs. Centrum is built around a different vision—APIs that can become smarter over time.
+
+A client should be able to use an LLM initially to describe the response or behavior it needs. Centrum can then help turn that requirement into a reusable, persistent API. Instead of paying the cost of an LLM for every request, the client can run the persisted version, modify it as requirements change, and gradually shape the API around its own domain and workflow.
+
+This creates two complementary paths: direct intelligence through an LLM, and efficient, customizable behavior through persisted APIs. The goal is not to replace conventional APIs, but to give them a layer of understanding, adaptability, and evolution.
+
+Today, Centrum explores this model through governed LLM interactions and reusable API behavior. Tomorrow, as locally deployed models become faster, smaller, and more capable, requests may be served intelligently by models running close to the application and its data.
+
+The long-term ambition is to build APIs that do more than respond: APIs that understand context, adapt to client requirements, and can be refined over time—APIs with a brain.
+
 ## Why this is different
 
 An AI Interface is not a prompt placed in front of unrestricted application code.
@@ -92,6 +105,8 @@ bash .agents/skills/develop-ai-interfaces/scripts/bootstrap.sh
 Pass `--live` only when `OPENAI_API_KEY` is already configured and the change requires
 real-model behavioral validation.
 
+For an independent pre-merge review, use the repository-owned [`ai-pr-reviewer`](.agents/skills/ai-pr-reviewer/SKILL.md) skill. It runs locally from the checkout and does not require a GitHub or OpenAI API key; a human maintainer retains approval and merge responsibility.
+
 ### Recommended Codex security skills
 
 The framework does not require agent skills at runtime. They are optional development
@@ -156,11 +171,12 @@ curl http://localhost:3000/v1/execute \
 Use the returned `pagination.nextToken` as `continuationToken` in the next request.
 PDF results contain an authenticated `/v1/artifacts/:artifactId` download URL.
 
-## Persist an API response
+## Build a persisted API
 
 Interactive requests use an LLM on every execution. When a response should remain
-stable, build a tenant-owned persisted API once and invoke it later without a model
-call:
+clients can build a tenant-owned API once and invoke it later without a model call. The
+LLM is used as a compiler: Centrum stores a validated query and renderer plan, not just
+a cached response:
 
 ```bash
 curl http://localhost:3000/v1/persisted-apis \
@@ -177,9 +193,10 @@ curl http://localhost:3000/v1/persisted/featured-products \
   -H 'x-ai-interface-key: YOUR_LOCAL_DEMO_KEY'
 ```
 
-Creation uses the governed LLM path once. Invocation and versioned manual edits are
-deterministic and make no provider call. Responses remain authenticated, tenant-scoped,
-explicitly published, size-limited, versioned, and audited. See the
+Creation uses the governed LLM path once. Invocation and versioned plan edits execute
+deterministic capabilities against current tenant data and make no provider call.
+Persisted APIs remain authenticated, tenant-scoped, explicitly published, versioned,
+and audited. See the
 [persisted API builder guide](docs/persisted-api-builder.md) for management endpoints,
 idempotency, editing, publication, and current limitations.
 

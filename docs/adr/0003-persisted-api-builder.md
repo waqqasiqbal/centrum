@@ -6,7 +6,7 @@ Status: Accepted
 
 The interactive execution path invokes an LLM on every request. That is appropriate
 when each request needs fresh intent interpretation, but it is unnecessarily expensive
-when a tenant wants to publish a response and change it only occasionally.
+when a tenant wants a repeatable API over its own data.
 
 Treating this as an opaque response cache would make ownership, edits, publication,
 auditing, and invalidation unclear. Allowing the model to create executable handlers,
@@ -23,8 +23,10 @@ Add tenant-owned persisted JSON APIs with two execution modes:
 
 1. Interactive execution continues to use the LLM for every request through
    `POST /v1/execute`.
-2. API builder creation invokes the governed read-only runtime once, persists the
-   canonical JSON delivery, and serves it later without invoking a provider.
+2. API builder creation invokes the governed read-only runtime once, captures the
+   validated capability arguments as a typed execution plan, and executes that plan
+   later without invoking a provider. A preview response may be retained for
+   inspection, but it is not the invocation source of truth.
 
 Persisted API creation requires an idempotency key. The key is stored only as a hash and
 is bound to the tenant and request hash. Reuse with an identical request returns the
@@ -43,8 +45,8 @@ tenant-scoped.
 - Responses are JSON and limited to 64 KiB.
 - Creation uses the existing product search and deterministic JSON renderer.
 - PDF artifacts are excluded because they expire.
-- Persisted responses are snapshots; they do not automatically follow source-data
-  changes.
+- Persisted plans currently target the product search capability and JSON renderer; they
+  execute against current tenant data.
 - There are no executable templates, arbitrary headers, SQL, URLs, filesystem paths,
   scripts, or user-provided code.
 - Regeneration, rollback, deletion, parameters, custom methods, schemas, and public
@@ -53,9 +55,9 @@ tenant-scoped.
 ## Consequences
 
 Repeated invocation has no model token cost and deterministic latency. Tenants can edit
-and publish responses explicitly while the LLM remains an authoring aid rather than a
-runtime authority.
+and publish plans explicitly while the LLM remains an authoring/compiler aid rather than
+a runtime authority.
 
 The feature introduces narrowly scoped persistence mutations, but it does not change
 the read-only model capability sequence. Callers must decide when a snapshot is
-appropriate and explicitly rebuild or edit it when canonical source data changes.
+appropriate and explicitly rebuild or edit it when requirements change.

@@ -92,7 +92,16 @@ code-enforced security boundary, such as rejecting an out-of-order capability ca
 6. Update README, capability-authoring docs, ADRs, and the security report when a public
    contract or trust boundary changes.
 
+## Independent PR reviewer
+
+Use the repository-owned [`ai-pr-reviewer`](.agents/skills/ai-pr-reviewer/SKILL.md) skill for every merge-ready change before requesting approval. It is advisory: a human maintainer remains responsible for approval and merge decisions.
+
 ## Optional review skills
+
+The repository includes an independent reviewer skill at
+[`.agents/skills/ai-pr-reviewer/SKILL.md`](.agents/skills/ai-pr-reviewer/SKILL.md).
+Use it for every merge-ready change before requesting approval. It is advisory: a
+human maintainer remains responsible for approval and merge decisions.
 
 The recommended local Codex skills and reproducible installation commands are listed in
 the README under “Recommended Codex security skills.” They assist reviews but do not

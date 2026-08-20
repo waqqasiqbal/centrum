@@ -44,13 +44,21 @@ describe("persisted APIs", () => {
       url: "/v1/persisted/featured-products",
       headers: { "x-ai-interface-key": demoKeys[0].apiKey },
     });
+    const firstProduct = database.db
+      .prepare("SELECT id FROM products WHERE tenant_id = ? ORDER BY name, id LIMIT 1")
+      .get("tenant_nordic") as { id: string };
+    database.db
+      .prepare("UPDATE products SET name = ? WHERE tenant_id = ? AND id = ?")
+      .run("Aardvark after compilation", "tenant_nordic", firstProduct.id);
     const secondInvocation = await app.inject({
       method: "GET",
       url: "/v1/persisted/featured-products",
       headers: { "x-ai-interface-key": demoKeys[0].apiKey },
     });
     expect(firstInvocation.statusCode).toBe(200);
-    expect(secondInvocation.json()).toEqual(firstInvocation.json());
+    expect(firstInvocation.json()[0].name).toBe("Aurora Headphones");
+    expect(secondInvocation.json()[0].name).toBe("Aardvark after compilation");
+    expect(secondInvocation.json()).not.toEqual(firstInvocation.json());
     expect(firstInvocation.headers["x-persisted-api-version"]).toBe("1");
     expect(provider.calls).toBe(3);
 
@@ -94,20 +102,29 @@ describe("persisted APIs", () => {
       payload: { slug: "editable-products", instruction: "Return products as JSON" },
     });
 
+    const current = await app.inject({
+      method: "GET",
+      url: "/v1/persisted-apis/editable-products",
+      headers: { "x-ai-interface-key": apiKey },
+    });
+    const currentPlan = current.json().api.plan;
     const updated = await app.inject({
       method: "PUT",
       url: "/v1/persisted-apis/editable-products",
       headers: { "x-ai-interface-key": apiKey },
       payload: {
         expectedVersion: 1,
-        responseBody: { message: "Updated without an LLM call" },
+        plan: {
+          ...currentPlan,
+          search: { ...currentPlan.search, limit: 3 },
+        },
       },
     });
     expect(updated.statusCode).toBe(200);
     expect(updated.json()).toMatchObject({
       api: {
         version: 2,
-        responseBody: { message: "Updated without an LLM call" },
+        plan: { search: { limit: 3 } },
       },
     });
     expect(provider.calls).toBe(3);
