@@ -1,11 +1,12 @@
 # Persisted API builder
 
-The persisted API builder turns one governed LLM result into a tenant-owned JSON
-endpoint. Creating the API invokes the model once. Invoking or manually editing the
-saved API does not invoke the model.
+The persisted API builder compiles one governed LLM interaction into a tenant-owned,
+validated execution plan. Creating the API invokes the model once. Invoking or editing
+the saved plan executes deterministic capabilities and does not invoke the model.
 
 Use `POST /v1/execute` when each request needs fresh interpretation. Use a persisted API
-when a reviewed response should remain stable until an owner changes it.
+when a client wants a repeatable API over its own data without paying for model
+interpretation on every request.
 
 ## Build an API with the LLM
 
@@ -25,7 +26,8 @@ curl http://localhost:3000/v1/persisted-apis \
 ```
 
 The server runs the normal governed sequence with only the JSON renderer available,
-saves the canonical output, and returns its management record and invoke URL.
+captures the validated `search_products` query and JSON renderer as a typed plan, stores
+that plan and a preview output, and returns its management record and invoke URL.
 
 Retry the same creation request with the same idempotency key to retrieve the existing
 result without another model call. Reusing that key with different input returns
@@ -40,7 +42,9 @@ curl http://localhost:3000/v1/persisted/featured-products \
   -H 'x-ai-interface-key: YOUR_API_KEY'
 ```
 
-The response body is the stored JSON. These headers provide operational metadata:
+The server executes the stored query and renderer against the authenticated tenant's
+current data. The response is produced without a provider call. These headers provide
+operational metadata:
 
 - `x-ai-interface-request-id`
 - `x-persisted-api-version`
@@ -58,7 +62,8 @@ curl http://localhost:3000/v1/persisted-apis/featured-products \
   -H 'x-ai-interface-key: YOUR_API_KEY'
 ```
 
-The list omits response bodies. Fetch a specific management record to inspect its body.
+The list omits plan and preview bodies. Fetch a specific management record to inspect
+the compiled plan.
 
 ## Modify without an LLM
 
@@ -71,13 +76,21 @@ curl http://localhost:3000/v1/persisted-apis/featured-products \
   -H 'x-ai-interface-key: YOUR_API_KEY' \
   -d '{
     "expectedVersion": 1,
-    "responseBody": {
-      "message": "This response was changed without an LLM call"
+    "plan": {
+      "version": 1,
+      "renderer": "json",
+      "search": {
+        "filters": [],
+        "sort": { "field": "name", "direction": "asc" },
+        "limit": 10,
+        "projection": ["id", "name", "price"],
+        "cursor": null
+      }
     }
   }'
 ```
 
-Each successful edit increments the version and records an immutable version snapshot
+Each successful plan edit increments the version and records an immutable plan snapshot
 and audit event. A stale `expectedVersion` returns `409 CONFLICT` instead of overwriting
 another change.
 
@@ -90,9 +103,10 @@ the API and its history. Set it back to `true` with the latest version to republ
 - Stored JSON is limited to 64 KiB; the server's 16 KiB HTTP body limit also bounds
   manual edit requests.
 - Creation supports JSON only; expiring PDF artifacts cannot be persisted.
-- Responses are snapshots and do not automatically refresh when catalog data changes.
-- No handler code, templates, SQL, credentials, custom headers, paths, or URLs are
-  accepted.
+- The compiled plan runs against current catalog data; it does not store executable
+  handler code.
+- No arbitrary code, templates, SQL, credentials, custom headers, paths, or URLs are
+  accepted. Plans contain only allowlisted capability arguments.
 - Tenant identity comes from the authenticated principal, never from request data.
 
 See [ADR 0003](adr/0003-persisted-api-builder.md) for the authority, idempotency,

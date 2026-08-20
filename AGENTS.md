@@ -98,6 +98,11 @@ Use the repository-owned [`ai-pr-reviewer`](.agents/skills/ai-pr-reviewer/SKILL.
 
 ## Optional review skills
 
+The repository includes an independent reviewer skill at
+[`.agents/skills/ai-pr-reviewer/SKILL.md`](.agents/skills/ai-pr-reviewer/SKILL.md).
+Use it for every merge-ready change before requesting approval. It is advisory: a
+human maintainer remains responsible for approval and merge decisions.
+
 The recommended local Codex skills and reproducible installation commands are listed in
 the README under “Recommended Codex security skills.” They assist reviews but do not
 replace these repository rules, automated tests, or deterministic enforcement.

@@ -8,14 +8,20 @@ import {
   AIInterfaceError,
   AIInterfaceRuntime,
   ReadOnlyPolicy,
+  ResourceStore,
   createDeliverCapability,
+  type Capability,
+  type DeliveryValue,
+  type Principal,
   toErrorEnvelope,
   type AgentProvider,
 } from "@ai-interfaces/core";
 import {
   CatalogDatabase,
   createSearchProductsCapability,
+  searchProductsInputSchema,
   seedDemo,
+  type PersistedApiPlan,
 } from "@ai-interfaces/catalog";
 import { createRendererCapabilities } from "@ai-interfaces/renderers";
 import { OpenAIResponsesProvider } from "@ai-interfaces/openai";
@@ -46,13 +52,27 @@ const createPersistedApiSchema = z
 const updatePersistedApiSchema = z
   .object({
     expectedVersion: z.number().int().positive(),
-    responseBody: z.json().optional(),
+    plan: z
+      .object({
+        version: z.literal(1),
+        renderer: z.literal("json"),
+        search: searchProductsInputSchema,
+      })
+      .strict()
+      .optional(),
     published: z.boolean().optional(),
   })
   .strict()
-  .refine((value) => value.responseBody !== undefined || value.published !== undefined, {
-    message: "Provide responseBody or published.",
+  .refine((value) => value.plan !== undefined || value.published !== undefined, {
+    message: "Provide plan or published.",
   });
+const persistedApiPlanSchema = z
+  .object({
+    version: z.literal(1),
+    renderer: z.literal("json"),
+    search: searchProductsInputSchema,
+  })
+  .strict();
 
 export interface AppOptions {
   databasePath?: string;
@@ -92,6 +112,7 @@ export async function createApp(options: AppOptions = {}) {
     ...createRendererCapabilities(database, artifactDirectory),
     createDeliverCapability(),
   ];
+  const capabilityMap = new Map<string, Capability>(capabilities.map((item) => [item.name, item]));
   const runtime = new AIInterfaceRuntime({
     provider,
     capabilities,
@@ -220,7 +241,7 @@ export async function createApp(options: AppOptions = {}) {
       const built = await builderRuntime.execute(
         {
           instruction: `${parsed.instruction}\nReturn the result as JSON for a persisted API.`,
-          options: { includeTrace: false },
+          options: { includeTrace: true },
         },
         principal,
         requestId,
@@ -232,11 +253,13 @@ export async function createApp(options: AppOptions = {}) {
         );
       }
       assertJsonSize(built.output.data);
+      const plan = compilePersistedPlan(built.trace);
       const record = database.createPersistedApi({
         tenantId: principal.tenantId,
         principalId: principal.id,
         slug: parsed.slug,
         instruction: parsed.instruction,
+        plan,
         responseBody: built.output.data,
         published: parsed.published,
         idempotencyKey,
@@ -298,13 +321,12 @@ export async function createApp(options: AppOptions = {}) {
       limiter.consume(`principal:${principal.id}:persisted-manage`, 10, 60_000);
       const slug = parseOrThrow(slugSchema, request.params.slug);
       const parsed = parseOrThrow(updatePersistedApiSchema, request.body);
-      if (parsed.responseBody !== undefined) assertJsonSize(parsed.responseBody);
       const record = database.updatePersistedApi({
         tenantId: principal.tenantId,
         principalId: principal.id,
         slug,
         expectedVersion: parsed.expectedVersion,
-        ...(parsed.responseBody !== undefined ? { responseBody: parsed.responseBody } : {}),
+        ...(parsed.plan !== undefined ? { plan: parsed.plan } : {}),
         ...(parsed.published !== undefined ? { published: parsed.published } : {}),
       });
       request.log.info({
@@ -333,7 +355,21 @@ export async function createApp(options: AppOptions = {}) {
       if (!record) throw new AIInterfaceError("INVALID_REQUEST", "Persisted API not found.", 404);
       reply.header("x-ai-interface-request-id", requestId);
       reply.header("x-persisted-api-version", String(record.version));
-      return reply.code(200).send(record.responseBody);
+      if (!record.plan) {
+        throw new AIInterfaceError(
+          "UNSUPPORTED_OUTPUT",
+          "This persisted API is a legacy snapshot and must be rebuilt before invocation.",
+          409,
+        );
+      }
+      const plan = parseOrThrow(persistedApiPlanSchema, record.plan);
+      const delivery = await executePersistedPlan(
+        capabilityMap,
+        plan,
+        principal,
+        record.instruction,
+      );
+      return reply.code(200).send(delivery.output.kind === "data" ? delivery.output.data : delivery.output);
     } catch (error) {
       return sendError(reply, error, requestId, startedAt);
     }
@@ -373,6 +409,73 @@ export async function createApp(options: AppOptions = {}) {
 
   app.addHook("onClose", async () => database.close());
   return { app, database, demoKeys, provider };
+}
+
+function compilePersistedPlan(trace: unknown): PersistedApiPlan {
+  const events =
+    typeof trace === "object" && trace !== null && "events" in trace && Array.isArray(trace.events)
+      ? trace.events
+      : [];
+  const toolCalls = events.filter(
+    (event): event is { type: string; name: string; arguments?: unknown } =>
+      typeof event === "object" && event !== null && "type" in event && event.type === "tool_call",
+  );
+  const search = toolCalls.find((event) => event.name === "search_products")?.arguments;
+  const renderer = toolCalls.find((event) => event.name === "deliver_json")?.name;
+  if (!search || renderer !== "deliver_json") {
+    throw new AIInterfaceError(
+      "UNSUPPORTED_OUTPUT",
+      "The requested API could not be compiled into a supported deterministic plan.",
+    );
+  }
+  return persistedApiPlanSchema.parse({ version: 1, renderer: "json", search });
+}
+
+async function executePersistedPlan(
+  capabilities: Map<string, Capability>,
+  plan: PersistedApiPlan,
+  principal: Principal,
+  instruction: string,
+): Promise<DeliveryValue> {
+  const search = capabilities.get("search_products");
+  const render = capabilities.get("deliver_json");
+  const deliver = capabilities.get("deliver");
+  if (!search || !render || !deliver) {
+    throw new AIInterfaceError("INTERNAL_ERROR", "The persisted API runtime is incomplete.", 500);
+  }
+  const resources = new ResourceStore();
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 30_000);
+  const context = {
+    principal,
+    request: { instruction, options: { includeTrace: false } },
+    resources,
+    signal: controller.signal,
+    emit: () => undefined,
+  };
+  try {
+    const searchResult = await search.execute(plan.search, context);
+    const searchHandle = requireHandle(searchResult, "search_products");
+    const renderResult = await render.execute({ resultHandleId: searchHandle }, context);
+    const renderHandle = requireHandle(renderResult, "deliver_json");
+    const deliveryResult = await deliver.execute({ handleId: renderHandle }, context);
+    const deliveryHandle = requireHandle(deliveryResult, "deliver");
+    return resources.get<DeliveryValue>(deliveryHandle, principal.tenantId, "delivery").value;
+  } catch (error) {
+    if (controller.signal.aborted) {
+      throw new AIInterfaceError("MODEL_TIMEOUT", "The persisted API exceeded the request deadline.", 504);
+    }
+    throw error;
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+function requireHandle(value: unknown, capabilityName: string) {
+  if (typeof value !== "object" || value === null || !("handleId" in value) || typeof value.handleId !== "string") {
+    throw new AIInterfaceError("INTERNAL_ERROR", `${capabilityName} returned an invalid handle.`, 500);
+  }
+  return value.handleId;
 }
 
 function chooseProvider(): AgentProvider {
@@ -502,6 +605,7 @@ function persistedApiEnvelope(
       id: record.id,
       slug: record.slug,
       instruction: record.instruction,
+      plan: record.plan,
       responseBody: record.responseBody,
       version: record.version,
       published: record.published,

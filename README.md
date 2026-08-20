@@ -105,7 +105,6 @@ bash .agents/skills/develop-ai-interfaces/scripts/bootstrap.sh
 Pass `--live` only when `OPENAI_API_KEY` is already configured and the change requires
 real-model behavioral validation.
 
-
 For an independent pre-merge review, use the repository-owned [`ai-pr-reviewer`](.agents/skills/ai-pr-reviewer/SKILL.md) skill. It runs locally from the checkout and does not require a GitHub or OpenAI API key; a human maintainer retains approval and merge responsibility.
 
 ### Recommended Codex security skills
@@ -172,11 +171,12 @@ curl http://localhost:3000/v1/execute \
 Use the returned `pagination.nextToken` as `continuationToken` in the next request.
 PDF results contain an authenticated `/v1/artifacts/:artifactId` download URL.
 
-## Persist an API response
+## Build a persisted API
 
 Interactive requests use an LLM on every execution. When a response should remain
-stable, build a tenant-owned persisted API once and invoke it later without a model
-call:
+clients can build a tenant-owned API once and invoke it later without a model call. The
+LLM is used as a compiler: Centrum stores a validated query and renderer plan, not just
+a cached response:
 
 ```bash
 curl http://localhost:3000/v1/persisted-apis \
@@ -193,9 +193,10 @@ curl http://localhost:3000/v1/persisted/featured-products \
   -H 'x-ai-interface-key: YOUR_LOCAL_DEMO_KEY'
 ```
 
-Creation uses the governed LLM path once. Invocation and versioned manual edits are
-deterministic and make no provider call. Responses remain authenticated, tenant-scoped,
-explicitly published, size-limited, versioned, and audited. See the
+Creation uses the governed LLM path once. Invocation and versioned plan edits execute
+deterministic capabilities against current tenant data and make no provider call.
+Persisted APIs remain authenticated, tenant-scoped, explicitly published, versioned,
+and audited. See the
 [persisted API builder guide](docs/persisted-api-builder.md) for management endpoints,
 idempotency, editing, publication, and current limitations.
 

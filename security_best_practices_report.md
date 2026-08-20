@@ -29,7 +29,7 @@ adversarial/evaluation suite must run with a real project key.
 - Adversaries: unauthenticated clients, compromised tenant keys, malicious tenants,
   prompt-injection text in instructions or product data, and a provider returning an
   invalid tool call.
-- Protected assets: tenant catalog data, persisted responses and version history, API
+- Protected assets: tenant catalog data, persisted plans, previews and version history, API
   keys, cursor integrity, generated PDF artifacts, filesystem paths, model budget,
   audit integrity, and system configuration.
 - Trust boundaries: HTTP client to Fastify; Fastify to authenticated principal; runtime
@@ -147,8 +147,8 @@ adversarial/evaluation suite must run with a real project key.
   reasoning or product-record content.
 - Persisted API mutations: management and invocation use separate key authorities;
   tenant scope is injected; creation keys are hashed and request-bound; updates require
-  the current version; each mutation creates immutable version and audit rows; stored
-  bodies are JSON-only and limited to 64 KiB.
+  the current version; each mutation creates immutable plan/version and audit rows;
+  plans and previews are JSON-only and limited to 64 KiB.
 
 ## Dependency and verification results
 
