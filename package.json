@@ -14,7 +14,7 @@
     "demo:seed": "tsx scripts/seed.ts",
     "pretest": "pnpm build:packages",
     "test": "pnpm test:unit && pnpm test:llm",
-    "test:unit": "vitest run tests/policy.test.ts tests/runtime.test.ts tests/catalog.test.ts tests/security.test.ts",
+    "test:unit": "vitest run tests/policy.test.ts tests/runtime.test.ts tests/catalog.test.ts tests/security.test.ts tests/persisted-api.test.ts",
     "test:llm": "vitest run tests/openai.live.test.ts",
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit"

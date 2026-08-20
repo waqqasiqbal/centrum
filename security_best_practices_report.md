@@ -1,8 +1,8 @@
 # AI Interfaces Security Review
 
-Date: 2026-07-31
+Date: 2026-08-16
 Scope: TypeScript monorepo, Fastify API, OpenAI Responses adapter, SQLite catalog,
-PDF artifacts, React/Vite playground, tests, and GitHub Actions.
+persisted APIs, PDF artifacts, React/Vite playground, tests, and GitHub Actions.
 
 ## Executive summary
 
@@ -15,8 +15,9 @@ added browser/API hardening.
 The architecture has a strong base: the model cannot submit tenant IDs or SQL, tool
 arguments are schema validated, tenant scope is injected in the repository query,
 resource handles are request-local and tenant-bound, product values never become model
-instructions, and v1 exposes no mutation, network-fetch, shell, or arbitrary filesystem
-capability.
+instructions, and model-facing v1 exposes no mutation, network-fetch, shell, or arbitrary
+filesystem capability. Persisted API management is isolated as an authenticated,
+bounded, versioned, idempotent, and audited server operation.
 
 Residual production work remains: rate limits and token/cost budgets must move to a
 shared durable store, deployment headers must be verified at the edge, OpenAI data
@@ -28,13 +29,14 @@ adversarial/evaluation suite must run with a real project key.
 - Adversaries: unauthenticated clients, compromised tenant keys, malicious tenants,
   prompt-injection text in instructions or product data, and a provider returning an
   invalid tool call.
-- Protected assets: tenant catalog data, API keys, cursor integrity, generated PDF
-  artifacts, filesystem paths, model budget, audit integrity, and system configuration.
+- Protected assets: tenant catalog data, persisted responses and version history, API
+  keys, cursor integrity, generated PDF artifacts, filesystem paths, model budget,
+  audit integrity, and system configuration.
 - Trust boundaries: HTTP client to Fastify; Fastify to authenticated principal; runtime
   to model provider; model output to capability schemas; capability to SQLite/filesystem;
   API response to browser.
-- Out of scope for v1: write capabilities, cross-service identity, asynchronous jobs,
-  and production infrastructure controls.
+- Out of scope for v1: model-facing write capabilities, cross-service identity,
+  asynchronous jobs, anonymous persisted routes, and production infrastructure controls.
 
 ## Findings and remediation
 
@@ -143,6 +145,10 @@ adversarial/evaluation suite must run with a real project key.
   ignored; generated demo keys are high entropy, hashed at rest, and written mode 0600.
 - Audit privacy: traces contain tool names/validated arguments/usage, not hidden model
   reasoning or product-record content.
+- Persisted API mutations: management and invocation use separate key authorities;
+  tenant scope is injected; creation keys are hashed and request-bound; updates require
+  the current version; each mutation creates immutable version and audit rows; stored
+  bodies are JSON-only and limited to 64 KiB.
 
 ## Dependency and verification results
 
@@ -152,7 +158,7 @@ adversarial/evaluation suite must run with a real project key.
 - Supply-chain policy: installation correctly rejected seven dependencies published
   within the configured 24-hour minimum-release-age window. The policy was not weakened.
 - TypeScript: passed.
-- Unit/security tests: 8 passed.
+- Unit/security tests: 20 passed.
 - Package builds: core, catalog, renderers, and OpenAI adapter passed.
 - Playground production build: passed.
 - Secret-pattern scan: no match.

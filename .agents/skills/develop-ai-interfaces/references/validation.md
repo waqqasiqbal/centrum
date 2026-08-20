@@ -2,7 +2,7 @@
 
 ## Environment
 
-- Node.js 22 or newer is required for `node:sqlite`.
+- Node.js 24 LTS or newer is required for the supported release line and `node:sqlite`.
 - Use the repository-pinned `pnpm@10.14.0`.
 - Deterministic checks must not require `OPENAI_API_KEY`.
 - The live suite must fail clearly when the key is absent; do not silently skip it.
@@ -39,4 +39,3 @@ test -n "${OPENAI_API_KEY:-}" && npx pnpm@10.14.0 test:llm
 
 Use deterministic providers only to prove code-enforced boundaries. Do not replace live
 behavioral validation with scripted keyword logic.
-

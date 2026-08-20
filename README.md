@@ -26,9 +26,24 @@ instruction → policy → model plan → typed capability → resource handle
 
 ## Setup
 
+### Install the framework library
+
+The first release is a self-hosted TypeScript library. Install the reusable packages
+inside your own Node.js 24+ application:
+
+```bash
+npm install @ai-interfaces/core @ai-interfaces/openai \
+  @ai-interfaces/catalog @ai-interfaces/renderers
+```
+
+The packages are designed to be composed in application code. The reference Fastify
+server and React playground in this repository are examples, not required runtime
+dependencies. See [Library installation and release](docs/library-release.md) for a
+minimal application example and the package/release boundary.
+
 ### Prerequisites
 
-- Node.js 22 or newer
+- Node.js 24 LTS or newer
 - Git
 - An OpenAI API key with access to the configured model
 
@@ -77,11 +92,8 @@ bash .agents/skills/develop-ai-interfaces/scripts/bootstrap.sh
 Pass `--live` only when `OPENAI_API_KEY` is already configured and the change requires
 real-model behavioral validation.
 
-For an independent pre-merge review, use the repository-owned
-[`ai-pr-reviewer`](.agents/skills/ai-pr-reviewer/SKILL.md) skill. It is installed locally
-with the checkout under `.agents/skills/` and is activated through `AGENTS.md`; it does
-not require a GitHub or OpenAI API key. It reviews the diff and reports findings, while a
-human maintainer retains approval and merge responsibility.
+
+For an independent pre-merge review, use the repository-owned [`ai-pr-reviewer`](.agents/skills/ai-pr-reviewer/SKILL.md) skill. It runs locally from the checkout and does not require a GitHub or OpenAI API key; a human maintainer retains approval and merge responsibility.
 
 ### Recommended Codex security skills
 
@@ -147,6 +159,33 @@ curl http://localhost:3000/v1/execute \
 Use the returned `pagination.nextToken` as `continuationToken` in the next request.
 PDF results contain an authenticated `/v1/artifacts/:artifactId` download URL.
 
+## Persist an API response
+
+Interactive requests use an LLM on every execution. When a response should remain
+stable, build a tenant-owned persisted API once and invoke it later without a model
+call:
+
+```bash
+curl http://localhost:3000/v1/persisted-apis \
+  -X POST \
+  -H 'content-type: application/json' \
+  -H 'x-ai-interface-key: YOUR_LOCAL_DEMO_KEY' \
+  -H 'idempotency-key: featured-products-v1' \
+  -d '{
+    "slug": "featured-products",
+    "instruction": "Return active outdoor products under €150 as JSON"
+  }'
+
+curl http://localhost:3000/v1/persisted/featured-products \
+  -H 'x-ai-interface-key: YOUR_LOCAL_DEMO_KEY'
+```
+
+Creation uses the governed LLM path once. Invocation and versioned manual edits are
+deterministic and make no provider call. Responses remain authenticated, tenant-scoped,
+explicitly published, size-limited, versioned, and audited. See the
+[persisted API builder guide](docs/persisted-api-builder.md) for management endpoints,
+idempotency, editing, publication, and current limitations.
+
 ## Workspace
 
 | Package | Responsibility |
@@ -165,7 +204,8 @@ PDF results contain an authenticated `/v1/artifacts/:artifactId` download URL.
 - Product queries use a validated AST and allowlisted SQL fragments.
 - Cursor tokens are signed and bound to tenant and sort order.
 - Resource handles are request-local, opaque, typed, and tenant-scoped.
-- The v1 policy is read-only; there are no shell, filesystem, URL, SQL, or mutation tools.
+- Model-facing v1 capabilities remain read-only; persisted API management is a separate,
+  authenticated, versioned, idempotent, and audited server operation.
 - Artifact metadata and downloads are tenant-scoped and expire after one hour.
 - Tool traces expose bounded audit data, never chain-of-thought.
 
@@ -186,7 +226,8 @@ npx pnpm@10.14.0 --filter @ai-interfaces/playground build
 ```
 
 The latest local verification completed successfully: type checking, all package and
-playground builds, and all 17 deterministic policy, runtime, catalog, and security tests
+playground builds, and all 20 deterministic policy, runtime, catalog, persisted API,
+and security tests
 passed.
 
 When model behavior changes, set `OPENAI_API_KEY` and run `npx pnpm@10.14.0 test:llm`.
