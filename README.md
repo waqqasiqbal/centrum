@@ -7,6 +7,19 @@ result, and returns a versioned response envelope.
 
 The reference prototype supports tenant-scoped product queries as JSON or PDF.
 
+
+## The motivation behind Centrum
+
+Most APIs are static: they expose fixed endpoints, accept predefined inputs, and return predefined outputs. Centrum is built around a different vision—APIs that can become smarter over time.
+
+A client should be able to use an LLM initially to describe the response or behavior it needs. Centrum can then help turn that requirement into a reusable, persistent API. Instead of paying the cost of an LLM for every request, the client can run the persisted version, modify it as requirements change, and gradually shape the API around its own domain and workflow.
+
+This creates two complementary paths: direct intelligence through an LLM, and efficient, customizable behavior through persisted APIs. The goal is not to replace conventional APIs, but to give them a layer of understanding, adaptability, and evolution.
+
+Today, Centrum explores this model through governed LLM interactions and reusable API behavior. Tomorrow, as locally deployed models become faster, smaller, and more capable, requests may be served intelligently by models running close to the application and its data.
+
+The long-term ambition is to build APIs that do more than respond: APIs that understand context, adapt to client requirements, and can be refined over time—APIs with a brain.
+
 ## Why this is different
 
 An AI Interface is not a prompt placed in front of unrestricted application code.
