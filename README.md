@@ -77,6 +77,12 @@ bash .agents/skills/develop-ai-interfaces/scripts/bootstrap.sh
 Pass `--live` only when `OPENAI_API_KEY` is already configured and the change requires
 real-model behavioral validation.
 
+For an independent pre-merge review, use the repository-owned
+[`ai-pr-reviewer`](.agents/skills/ai-pr-reviewer/SKILL.md) skill. It is installed locally
+with the checkout under `.agents/skills/` and is activated through `AGENTS.md`; it does
+not require a GitHub or OpenAI API key. It reviews the diff and reports findings, while a
+human maintainer retains approval and merge responsibility.
+
 ### Recommended Codex security skills
 
 The framework does not require agent skills at runtime. They are optional development
