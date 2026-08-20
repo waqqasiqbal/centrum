@@ -1,8 +1,8 @@
 # Persisted API builder
 
 The persisted API builder compiles one governed LLM interaction into a tenant-owned,
-validated execution plan. Creating the API invokes the model once. Invoking or editing
-the saved plan executes deterministic capabilities and does not invoke the model.
+validated execution artifact. Creating the API invokes the model once. Invoking or editing
+the saved artifact executes deterministic capabilities and does not invoke the model.
 
 Use `POST /v1/execute` when each request needs fresh interpretation. Use a persisted API
 when a client wants a repeatable API over its own data without paying for model
@@ -26,8 +26,9 @@ curl http://localhost:3000/v1/persisted-apis \
 ```
 
 The server runs the normal governed sequence with only the JSON renderer available,
-captures the validated `search_products` query and JSON renderer as a typed plan, stores
-that plan and a preview output, and returns its management record and invoke URL.
+captures the validated `search_products` query, optional `transform_json` pipeline, and
+JSON renderer as a typed artifact, stores that artifact and a preview output, and returns
+its management record and invoke URL.
 
 Retry the same creation request with the same idempotency key to retrieve the existing
 result without another model call. Reusing that key with different input returns
@@ -103,10 +104,11 @@ the API and its history. Set it back to `true` with the latest version to republ
 - Stored JSON is limited to 64 KiB; the server's 16 KiB HTTP body limit also bounds
   manual edit requests.
 - Creation supports JSON only; expiring PDF artifacts cannot be persisted.
-- The compiled plan runs against current catalog data; it does not store executable
-  handler code.
-- No arbitrary code, templates, SQL, credentials, custom headers, paths, or URLs are
-  accepted. Plans contain only allowlisted capability arguments.
+- The compiled artifact runs against current catalog data; it does not store executable
+  handler code. Its optional `json-pipeline-v1` stage supports only bounded `pick` and
+  `rename` operations.
+- No arbitrary code, raw SQL, templates, credentials, custom headers, paths, or URLs are
+  accepted. Artifacts contain only allowlisted capability arguments and operations.
 - Tenant identity comes from the authenticated principal, never from request data.
 
 See [ADR 0003](adr/0003-persisted-api-builder.md) for the authority, idempotency,

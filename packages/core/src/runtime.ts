@@ -196,7 +196,9 @@ export class AIInterfaceRuntime {
 
 function allowedInPhase(name: string, phase: "search" | "render" | "deliver") {
   if (phase === "search") return name === "search_products";
-  if (phase === "render") return name === "deliver_json" || name === "render_product_pdf";
+  if (phase === "render") {
+    return name === "transform_json" || name === "deliver_json" || name === "render_product_pdf";
+  }
   return name === "deliver";
 }
 

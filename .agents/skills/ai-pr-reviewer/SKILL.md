@@ -31,7 +31,7 @@ push unless the user separately asks for implementation or a GitHub action.
 
 ## Centrum invariants
 
-- Preserve `search_products -> one renderer -> deliver`.
+- Preserve `search_products -> optional bounded transformation -> one renderer -> deliver`.
 - Never pass credentials, tenant IDs, SQL, filesystem paths, environment values,
   arbitrary URLs, or executable input to the model.
 - Keep tenant identity derived from the authenticated `Principal`.

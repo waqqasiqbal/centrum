@@ -54,6 +54,16 @@ export interface PersistedApiPlan {
     projection: string[];
     cursor?: string | null;
   };
+  transform?: PersistedApiTransform;
+}
+
+export interface PersistedApiTransform {
+  version: 1;
+  language: "json-pipeline-v1";
+  steps: Array<
+    | { op: "pick"; fields: string[] }
+    | { op: "rename"; from: string; to: string }
+  >;
 }
 
 export interface PersistedApiSummary
@@ -471,6 +481,7 @@ export function seedDemo(database: CatalogDatabase) {
     "deliver",
     "manage_persisted_apis",
     "invoke_persisted_apis",
+    "transform_json",
   ];
   const tenants = [
     { id: "tenant_nordic", name: "Nordic Goods", prefix: "nordic" },

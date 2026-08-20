@@ -40,7 +40,7 @@ artifacts, logs, or demo credentials to source control.
 2. Keep tenant identity injected from the authenticated `Principal`.
 3. Keep model-facing arguments strict, bounded, and free of tenant IDs, credentials,
    SQL, paths, environment values, arbitrary URLs, or executable input.
-4. Preserve `search_products -> one renderer -> deliver` unless a reviewed design
+4. Preserve `search_products -> optional bounded transformation -> one renderer -> deliver` unless a reviewed design
    explicitly changes the protocol.
 5. Keep product data and file generation deterministic. Exchange request-local,
    tenant-bound opaque handles between capabilities.

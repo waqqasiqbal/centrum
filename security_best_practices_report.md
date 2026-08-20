@@ -140,7 +140,9 @@ adversarial/evaluation suite must run with a real project key.
 - Prompt injection: product records are retained in request-local resources and rendered
   deterministically; raw rows are not sent back to the model.
 - Output handling: React uses escaped JSX; no `dangerouslySetInnerHTML`, `innerHTML`,
-  `eval`, shell, arbitrary URL fetch, or arbitrary file capability was found.
+  `eval`, shell, arbitrary URL fetch, or arbitrary file capability was found. Persisted
+  artifacts use a bounded `json-pipeline-v1` transformation with allowlisted `pick` and
+  `rename` operations; they do not execute model-authored code or raw SQL.
 - Secrets: no credential pattern was found in tracked source; `.env` and `.data` are
   ignored; generated demo keys are high entropy, hashed at rest, and written mode 0600.
 - Audit privacy: traces contain tool names/validated arguments/usage, not hidden model

@@ -175,8 +175,8 @@ PDF results contain an authenticated `/v1/artifacts/:artifactId` download URL.
 
 Interactive requests use an LLM on every execution. When a response should remain
 clients can build a tenant-owned API once and invoke it later without a model call. The
-LLM is used as a compiler: Centrum stores a validated query and renderer plan, not just
-a cached response:
+LLM is used as a compiler: Centrum stores a validated query, renderer, and optional
+bounded transformation pipeline—not just a cached response:
 
 ```bash
 curl http://localhost:3000/v1/persisted-apis \
@@ -194,7 +194,9 @@ curl http://localhost:3000/v1/persisted/featured-products \
 ```
 
 Creation uses the governed LLM path once. Invocation and versioned plan edits execute
-deterministic capabilities against current tenant data and make no provider call.
+deterministic capabilities against current tenant data and make no provider call. The
+optional `json-pipeline-v1` stage supports only allowlisted `pick` and `rename`
+operations; arbitrary code and raw SQL are never executed.
 Persisted APIs remain authenticated, tenant-scoped, explicitly published, versioned,
 and audited. See the
 [persisted API builder guide](docs/persisted-api-builder.md) for management endpoints,

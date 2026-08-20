@@ -23,11 +23,102 @@ const pdfSchema = z
   })
   .strict();
 
+const transformFieldSchema = z.enum([
+  "id",
+  "name",
+  "sku",
+  "category",
+  "price",
+  "currency",
+  "stock",
+  "active",
+  "createdAt",
+]);
+const transformStepSchema = z.discriminatedUnion("op", [
+  z.object({ op: z.literal("pick"), fields: z.array(transformFieldSchema).min(1).max(9) }).strict(),
+  z
+    .object({
+      op: z.literal("rename"),
+      from: transformFieldSchema,
+      to: z.string().regex(/^[A-Za-z][A-Za-z0-9_]{0,39}$/),
+    })
+    .strict(),
+]);
+export const transformJsonInputSchema = z
+  .object({
+    resultHandleId: z.string().min(1),
+    pipeline: z
+      .object({
+        version: z.literal(1),
+        language: z.literal("json-pipeline-v1"),
+        steps: z.array(transformStepSchema).max(8),
+      })
+      .strict(),
+  })
+  .strict();
+
 export function createRendererCapabilities(
   database: CatalogDatabase,
   artifactDirectory: string,
 ): Capability[] {
-  return [createJsonCapability(), createPdfCapability(database, artifactDirectory)];
+  return [createTransformCapability(), createJsonCapability(), createPdfCapability(database, artifactDirectory)];
+}
+
+function createTransformCapability(): Capability<z.infer<typeof transformJsonInputSchema>> {
+  return {
+    name: "transform_json",
+    description:
+      "Apply a bounded JSON transformation pipeline to a governed product result. Use only pick and rename steps; no code, SQL, network, or filesystem access is available.",
+    inputSchema: transformJsonInputSchema,
+    parameters: {
+      type: "object",
+      properties: {
+        resultHandleId: { type: "string" },
+        pipeline: {
+          type: "object",
+          properties: {
+            version: { type: "number", enum: [1] },
+            language: { type: "string", enum: ["json-pipeline-v1"] },
+            steps: { type: "array", maxItems: 8 },
+          },
+          required: ["version", "language", "steps"],
+          additionalProperties: false,
+        },
+      },
+      required: ["resultHandleId", "pipeline"],
+      additionalProperties: false,
+    },
+    async execute({ resultHandleId, pipeline }, context) {
+      const result = context.resources.get<ProductSet>(
+        resultHandleId,
+        context.principal.tenantId,
+        "product_set",
+      ).value;
+      let rows = result.rows.map((row) => ({ ...row }));
+      for (const step of pipeline.steps) {
+        if (step.op === "pick") {
+          rows = rows.map((row) =>
+            Object.fromEntries(step.fields.map((field) => [field, row[field as keyof typeof row]])),
+          );
+        } else {
+          rows = rows.map((row) => {
+            if (!(step.from in row)) return row;
+            const next = { ...row, [step.to]: row[step.from as keyof typeof row] };
+            delete next[step.from as keyof typeof next];
+            return next;
+          });
+        }
+      }
+      const handleId = `products_${randomUUID()}`;
+      context.resources.put({
+        id: handleId,
+        type: "product_set",
+        tenantId: context.principal.tenantId,
+        value: { ...result, rows, projection: Object.keys(rows[0] ?? {}) },
+      });
+      return { handleId, resultCount: rows.length };
+    },
+  };
 }
 
 function createJsonCapability(): Capability<z.infer<typeof jsonSchema>> {

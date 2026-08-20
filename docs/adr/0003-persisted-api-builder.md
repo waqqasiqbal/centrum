@@ -24,8 +24,9 @@ Add tenant-owned persisted JSON APIs with two execution modes:
 1. Interactive execution continues to use the LLM for every request through
    `POST /v1/execute`.
 2. API builder creation invokes the governed read-only runtime once, captures the
-   validated capability arguments as a typed execution plan, and executes that plan
-   later without invoking a provider. A preview response may be retained for
+   validated query, optional bounded JSON transformation pipeline, and renderer as a
+   typed execution artifact, and executes that artifact later without invoking a
+   provider. A preview response may be retained for
    inspection, but it is not the invocation source of truth.
 
 Persisted API creation requires an idempotency key. The key is stored only as a hash and
@@ -45,9 +46,10 @@ tenant-scoped.
 - Responses are JSON and limited to 64 KiB.
 - Creation uses the existing product search and deterministic JSON renderer.
 - PDF artifacts are excluded because they expire.
-- Persisted plans currently target the product search capability and JSON renderer; they
-  execute against current tenant data.
-- There are no executable templates, arbitrary headers, SQL, URLs, filesystem paths,
+- Persisted artifacts currently target product search, an optional `json-pipeline-v1`
+  transformation (`pick`/`rename`), and JSON renderer; they execute against current
+  tenant data.
+- There are no arbitrary executable templates, headers, raw SQL, URLs, filesystem paths,
   scripts, or user-provided code.
 - Regeneration, rollback, deletion, parameters, custom methods, schemas, and public
   unauthenticated routes are future work.
