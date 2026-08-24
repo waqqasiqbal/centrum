@@ -24,6 +24,11 @@ npm install @ai-interfaces/core @ai-interfaces/openai \
 The packages are intentionally separate so an application can replace the provider,
 catalog, or renderers without installing the reference server or playground.
 
+For non-TypeScript clients, run the reference server or your own HTTP wrapper and use
+the language samples in [examples/README.md](../examples/README.md). The wire contract
+is JSON over HTTP, so Python, JavaScript, Java, Go, Rust, and other languages do not
+need the TypeScript packages installed.
+
 ## Compose the runtime
 
 The following is the smallest shape of a self-hosted application. The application must

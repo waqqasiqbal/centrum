@@ -54,6 +54,14 @@ server and React playground in this repository are examples, not required runtim
 dependencies. See [Library installation and release](docs/library-release.md) for a
 minimal application example and the package/release boundary.
 
+### Client examples
+
+The HTTP API can be consumed from any language. The repository includes copy-and-run
+samples for [Python, JavaScript, Java, Go, and Rust](examples/README.md). Each sample
+shows both choices: call `/v1/execute` when the request needs fresh LLM interpretation,
+or create a persisted API once and call `/v1/persisted/{slug}` for subsequent requests
+without another model call.
+
 ### Prerequisites
 
 - Node.js 24 LTS or newer
