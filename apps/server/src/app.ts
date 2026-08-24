@@ -10,9 +10,11 @@ import {
   ReadOnlyPolicy,
   ResourceStore,
   createDeliverCapability,
+  executeWasmTransform,
   type Capability,
   type DeliveryValue,
   type Principal,
+  wasmTransformArtifactSchema,
   toErrorEnvelope,
   type AgentProvider,
 } from "@ai-interfaces/core";
@@ -22,6 +24,7 @@ import {
   searchProductsInputSchema,
   seedDemo,
   type PersistedApiPlan,
+  type ProductSet,
 } from "@ai-interfaces/catalog";
 import { createRendererCapabilities, transformJsonInputSchema } from "@ai-interfaces/renderers";
 import { OpenAIResponsesProvider } from "@ai-interfaces/openai";
@@ -61,6 +64,7 @@ const updatePersistedApiSchema = z
       .strict()
       .extend({
         transform: transformJsonInputSchema.shape.pipeline.optional(),
+        wasm: wasmTransformArtifactSchema.optional(),
       })
       .optional(),
     published: z.boolean().optional(),
@@ -75,6 +79,7 @@ const persistedApiPlanSchema = z
     renderer: z.literal("json"),
     search: searchProductsInputSchema,
     transform: transformJsonInputSchema.shape.pipeline.optional(),
+    wasm: wasmTransformArtifactSchema.optional(),
   })
   .strict();
 
@@ -481,6 +486,17 @@ async function executePersistedPlan(
       );
       searchHandle = requireHandle(transformed, "transform_json");
     }
+    if (plan.wasm) {
+      const productSet = resources.get<ProductSet>(searchHandle, principal.tenantId, "product_set").value;
+      const rows = await executeWasmTransform(productSet.rows, plan.wasm, controller.signal);
+      searchHandle = `products_${randomUUID()}`;
+      resources.put({
+        id: searchHandle,
+        type: "product_set",
+        tenantId: principal.tenantId,
+        value: { ...productSet, rows, projection: Object.keys(rows[0] ?? {}) },
+      });
+    }
     const renderResult = await render.execute({ resultHandleId: searchHandle }, context);
     const renderHandle = requireHandle(renderResult, "deliver_json");
     const deliveryResult = await deliver.execute({ handleId: renderHandle }, context);
@@ -665,3 +681,4 @@ function readDemoKeys(databasePath: string): ReturnType<typeof seedDemo> {
     return [];
   }
 }
+

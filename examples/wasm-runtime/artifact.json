@@ -1,0 +1,10 @@
+{
+  "version": 1,
+  "runtime": "wasm-core-v1",
+  "moduleBase64": "AGFzbQEAAAABBgFgAX8BfwMCAQAHEQENdHJhbnNmb3JtX2kzMgAACgkBBwAgAEEZags=",
+  "entrypoint": "transform_i32",
+  "inputField": "stock",
+  "outputField": "stockWithBonus",
+  "timeoutMs": 100
+}
+

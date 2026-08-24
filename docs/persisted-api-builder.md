@@ -26,8 +26,9 @@ curl http://localhost:3000/v1/persisted-apis \
 ```
 
 The server runs the normal governed sequence with only the JSON renderer available,
-captures the validated `search_products` query, optional `transform_json` pipeline, and
-JSON renderer as a typed artifact, stores that artifact and a preview output, and returns
+captures the validated `search_products` query, optional bounded `transform_json` pipeline,
+optional code-bearing `wasm` transform, and JSON renderer as a typed artifact, stores that
+artifact and a preview output, and returns
 its management record and invoke URL.
 
 Retry the same creation request with the same idempotency key to retrieve the existing
@@ -104,12 +105,15 @@ the API and its history. Set it back to `true` with the latest version to republ
 - Stored JSON is limited to 64 KiB; the server's 16 KiB HTTP body limit also bounds
   manual edit requests.
 - Creation supports JSON only; expiring PDF artifacts cannot be persisted.
-- The compiled artifact runs against current catalog data; it does not store executable
-  handler code. Its optional `json-pipeline-v1` stage supports only bounded `pick` and
-  `rename` operations.
-- No arbitrary code, raw SQL, templates, credentials, custom headers, paths, or URLs are
-  accepted. Artifacts contain only allowlisted capability arguments and operations.
+- The compiled artifact runs against current catalog data. Its optional `json-pipeline-v1`
+  stage supports bounded `pick` and `rename` operations. Its optional `wasm-core-v1` stage
+  stores a validated WebAssembly module and applies one `i32 -> i32` transform per row;
+  modules cannot import host capabilities and run in a disposable worker with a timeout.
+- Raw SQL, templates, credentials, custom headers, paths, and URLs are not accepted in
+  plans. SQL remains host-controlled and read-only; see the [Wasm sample](../examples/wasm-runtime/README.md)
+  for a code-bearing transform.
 - Tenant identity comes from the authenticated principal, never from request data.
 
 See [ADR 0003](adr/0003-persisted-api-builder.md) for the authority, idempotency,
 versioning, and audit design.
+
