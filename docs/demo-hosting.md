@@ -46,9 +46,13 @@ Official references: [Render Fastify deployment](https://render.com/docs/deploy-
 
 ## Deployment sequence
 
-1. Add a production-safe `start` command and bind Fastify to `0.0.0.0`.
-2. Add environment-driven API origin and CORS configuration for the playground.
-3. Add a demo seed command that is idempotent and cannot target production data.
+1. Use the checked-in [`render.yaml`](../render.yaml) as a starting point for the
+   Render web service. Set every `sync: false` value in the Render dashboard; never
+   commit those values to the repository.
+2. Use `pnpm demo` for a one-command local demo. It builds packages, seeds synthetic
+   tenants, and starts the API plus Vite playground. Run `pnpm demo:check` from a
+   second terminal to verify `/health`.
+3. Configure `VITE_API_ORIGIN` for a split Cloudflare Pages + Render deployment.
 4. Deploy the API privately and validate health, live execution, persistence, and reset.
 5. Deploy the static playground against the API URL.
 6. Run the full demo from a clean browser and record the provider-call reduction.
@@ -60,4 +64,26 @@ Use Render first for the API and Cloudflare Pages first for the playground. Revi
 or Fly.io when we need a Docker-first deployment, regional placement, or a different
 operational model. Revisit Vercel only after a serverless adapter and external durable
 database are implemented.
+
+## Local and split deployment commands
+
+```bash
+# local: seed, build, and run API + playground
+pnpm demo
+
+# in a second terminal
+pnpm demo:check
+
+# Cloudflare Pages build settings
+# Root directory: apps/playground
+# Build command: pnpm --dir ../.. install --frozen-lockfile && pnpm --dir ../.. --filter @ai-interfaces/playground build
+# Build output directory: dist
+# Environment variable: VITE_API_ORIGIN=https://<your-render-service>.onrender.com
+```
+
+The current playground discovers development keys only when the API is not running in
+production. A public deployment therefore needs an authenticated, short-lived demo
+access path before it can be announced; do not set `AI_ENABLE_DEMO_KEYS=true` on Render.
+The Render blueprint intentionally leaves secrets and the allowed Cloudflare origin
+unset so deployment cannot silently publish credentials or accept arbitrary origins.
 

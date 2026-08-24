@@ -25,8 +25,8 @@ cost, latency, authorization, and audit behavior.
 
 - [ ] Publish a one-command local demo that shows provider calls changing from one to
   zero after API persistence.
-- [ ] Build a flagship multi-table analytics example with joins, aggregation, and a
-  deterministic business rule.
+- [x] Build a flagship multi-table analytics example with joins, aggregation, and a
+  deterministic business rule. See [`examples/analytics`](examples/analytics/README.md).
 - [ ] Add a visual plan inspector showing query, transformation, renderer, version, and
   invocation history without exposing hidden model reasoning.
 - [ ] Add `ROADMAP.md`, release notes, issue templates, PR template, and GitHub

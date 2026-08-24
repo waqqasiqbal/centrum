@@ -33,6 +33,11 @@ const examples = [
   "List electronics under €100, sorted by price ascending, as JSON.",
 ];
 
+// Empty in local development (Vite proxies /v1 to the API). Set this to the
+// Render API origin for a split Cloudflare Pages + API deployment.
+const apiOrigin = (import.meta.env.VITE_API_ORIGIN ?? "").replace(/\/$/, "");
+const apiUrl = (path: string) => `${apiOrigin}${path}`;
+
 export function App() {
   const [instruction, setInstruction] = useState(examples[0]);
   const [keys, setKeys] = useState<DemoKey[]>([]);
@@ -43,7 +48,7 @@ export function App() {
   const [continuationToken, setContinuationToken] = useState<string | null>(null);
 
   useEffect(() => {
-    fetch("/v1/demo/keys")
+    fetch(apiUrl("/v1/demo/keys"))
       .then((response) => response.json())
       .then((body: { keys: DemoKey[] }) => {
         setKeys(body.keys);
@@ -59,7 +64,7 @@ export function App() {
     if (!selectedKey || !instruction.trim()) return;
     setLoading(true);
     try {
-      const response = await fetch("/v1/execute", {
+      const response = await fetch(apiUrl("/v1/execute"), {
         method: "POST",
         headers: { "content-type": "application/json", "x-ai-interface-key": selectedKey },
         body: JSON.stringify({
@@ -95,8 +100,9 @@ export function App() {
     const artifact = result?.output?.artifact;
     if (!artifact) return;
     try {
-      const artifactUrl = new URL(artifact.downloadUrl, window.location.origin);
-      if (artifactUrl.origin !== window.location.origin || !artifactUrl.pathname.startsWith("/v1/artifacts/")) {
+      const artifactUrl = new URL(artifact.downloadUrl, apiOrigin || window.location.origin);
+      const expectedOrigin = apiOrigin ? new URL(apiOrigin).origin : window.location.origin;
+      if (artifactUrl.origin !== expectedOrigin || !artifactUrl.pathname.startsWith("/v1/artifacts/")) {
         throw new Error("The artifact URL was rejected by the client security policy.");
       }
       const response = await fetch(artifactUrl, {
@@ -293,3 +299,4 @@ function format(value: unknown) {
   if (typeof value === "number") return value.toLocaleString("en-SE");
   return String(value ?? "");
 }
+

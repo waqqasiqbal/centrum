@@ -85,12 +85,20 @@ example contains no credentials. Never commit `.env` or anything under `.data/`.
 Seed two isolated demo tenants and start the API and playground:
 
 ```bash
-npx pnpm@10.14.0 demo:seed
-npx pnpm@10.14.0 dev
+npx pnpm@10.14.0 demo
 ```
 
 Open [http://localhost:5173](http://localhost:5173). The playground discovers the
 two local development tenants created by the seed command.
+
+To verify the API is responding while the demo is running, use a second terminal:
+
+```bash
+npx pnpm@10.14.0 demo:check
+```
+
+For a split deployment (Render API + Cloudflare Pages playground), see
+[`docs/demo-hosting.md`](docs/demo-hosting.md) and [`render.yaml`](render.yaml).
 
 The prototype always uses a real LLM through the OpenAI Responses API. It intentionally
 has no scripted or non-LLM runtime fallback. The default model is `gpt-5.6-terra` with
