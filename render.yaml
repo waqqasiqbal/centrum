@@ -1,0 +1,23 @@
+services:
+  - type: web
+    name: centrum-api
+    runtime: node
+    plan: free
+    buildCommand: corepack enable && pnpm install --frozen-lockfile && pnpm build:packages
+    startCommand: pnpm --filter @ai-interfaces/server start
+    healthCheckPath: /health
+    autoDeploy: true
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: HOST
+        value: 0.0.0.0
+      - key: AI_ENABLE_DEMO_KEYS
+        value: "false"
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: AI_CURSOR_SECRET
+        sync: false
+      - key: AI_ALLOWED_ORIGINS
+        sync: false
+

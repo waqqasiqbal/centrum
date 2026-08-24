@@ -28,6 +28,8 @@ path. Persisted API creation invokes the LLM once; subsequent invocation does no
 The [Wasm runtime sample](wasm-runtime/README.md) demonstrates a persisted transform
 that contains executable code and produces a new field instead of replaying a stored
 response.
+The [flagship analytics sample](analytics/README.md) demonstrates a host-owned
+multi-table join, aggregation, and deterministic business rule.
 
 ## Run an example
 
