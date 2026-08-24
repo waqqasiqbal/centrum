@@ -272,6 +272,11 @@ npx pnpm@10.14.0 test:unit
 See [CONTRIBUTING.md](CONTRIBUTING.md) for capability-authoring expectations and
 [SECURITY.md](SECURITY.md) for vulnerability reporting and production caveats.
 
+## Project direction
+
+The project roadmap, adoption goals, and public demo-hosting decision are tracked in
+[`ROADMAP.md`](ROADMAP.md) and [`docs/demo-hosting.md`](docs/demo-hosting.md).
+
 ## Community
 
 - Read [CONTRIBUTING.md](CONTRIBUTING.md) before proposing a change.
