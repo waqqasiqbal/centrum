@@ -225,6 +225,59 @@ describe("persisted APIs", () => {
     expect(provider.calls).toBe(4);
     await app.close();
   });
+
+  it("executes a persisted Wasm transformation after the catalog query", async () => {
+    const provider = createJsonProvider();
+    const { app, demoKeys } = await createApp({
+      databasePath: ":memory:",
+      provider,
+      cursorSecret: "persisted-api-test-cursor-secret-32-bytes",
+      logger: false,
+    });
+    const apiKey = demoKeys[0].apiKey;
+    await app.inject({
+      method: "POST",
+      url: "/v1/persisted-apis",
+      headers: { "x-ai-interface-key": apiKey, "idempotency-key": "build-wasm-products-1" },
+      payload: { slug: "wasm-products", instruction: "Return products as JSON" },
+    });
+    const current = await app.inject({
+      method: "GET",
+      url: "/v1/persisted-apis/wasm-products",
+      headers: { "x-ai-interface-key": apiKey },
+    });
+    const plan = current.json().api.plan;
+    const updated = await app.inject({
+      method: "PUT",
+      url: "/v1/persisted-apis/wasm-products",
+      headers: { "x-ai-interface-key": apiKey },
+      payload: {
+        expectedVersion: 1,
+        plan: {
+          ...plan,
+          search: { ...plan.search, projection: ["id", "name", "stock"] },
+          wasm: {
+            version: 1,
+            runtime: "wasm-core-v1",
+            moduleBase64: "AGFzbQEAAAABBgFgAX8BfwMCAQAHEQENdHJhbnNmb3JtX2kzMgAACgkBBwAgAEEZags=",
+            entrypoint: "transform_i32",
+            inputField: "stock",
+            outputField: "stockWithBonus",
+            timeoutMs: 200,
+          },
+        },
+      },
+    });
+    expect(updated.statusCode).toBe(200);
+    const invocation = await app.inject({
+      method: "GET",
+      url: "/v1/persisted/wasm-products",
+      headers: { "x-ai-interface-key": apiKey },
+    });
+    expect(invocation.statusCode).toBe(200);
+    expect(invocation.json()[0].stockWithBonus).toBe(invocation.json()[0].stock + 25);
+    await app.close();
+  });
 });
 
 function createJsonProvider(withTransform = false): AgentProvider & { calls: number } {
@@ -308,3 +361,4 @@ function readHandle(results?: ToolResult[]) {
   }
   return String(output.handleId);
 }
+

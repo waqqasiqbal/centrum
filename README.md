@@ -61,6 +61,7 @@ samples for [Python, JavaScript, Java, Go, and Rust](examples/README.md). Each s
 shows both choices: call `/v1/execute` when the request needs fresh LLM interpretation,
 or create a persisted API once and call `/v1/persisted/{slug}` for subsequent requests
 without another model call.
+For a runnable code-bearing transform, see the [Wasm runtime sample](examples/wasm-runtime/README.md).
 
 ### Prerequisites
 
@@ -204,7 +205,8 @@ curl http://localhost:3000/v1/persisted/featured-products \
 Creation uses the governed LLM path once. Invocation and versioned plan edits execute
 deterministic capabilities against current tenant data and make no provider call. The
 optional `json-pipeline-v1` stage supports only allowlisted `pick` and `rename`
-operations; arbitrary code and raw SQL are never executed.
+operations. The optional `wasm-core-v1` stage executes a validated, import-free
+`i32 -> i32` module in an isolated worker; raw SQL remains host-controlled and read-only.
 Persisted APIs remain authenticated, tenant-scoped, explicitly published, versioned,
 and audited. See the
 [persisted API builder guide](docs/persisted-api-builder.md) for management endpoints,
@@ -284,3 +286,4 @@ background jobs, more renderers, PostgreSQL, and additional providers are intent
 outside v1.
 
 Licensed under Apache 2.0.
+

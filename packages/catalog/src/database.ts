@@ -1,7 +1,7 @@
 import { createHash, randomUUID } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
-import type { Principal } from "@ai-interfaces/core";
+import type { Principal, WasmTransformArtifact } from "@ai-interfaces/core";
 import { AIInterfaceError } from "@ai-interfaces/core";
 
 // Computed specifier keeps newer built-in modules intact in bundlers whose
@@ -55,6 +55,7 @@ export interface PersistedApiPlan {
     cursor?: string | null;
   };
   transform?: PersistedApiTransform;
+  wasm?: WasmTransformArtifact;
 }
 
 export interface PersistedApiTransform {
@@ -563,3 +564,4 @@ function demoProducts() {
     active,
   }));
 }
+
