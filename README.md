@@ -183,9 +183,10 @@ PDF results contain an authenticated `/v1/artifacts/:artifactId` download URL.
 ## Build a persisted API
 
 Interactive requests use an LLM on every execution. When a response should remain
-clients can build a tenant-owned API once and invoke it later without a model call. The
+stable, clients can build a tenant-owned API once and invoke it later without a model call. The
 LLM is used as a compiler: Centrum stores a validated query, renderer, and optional
-bounded transformation pipeline—not just a cached response:
+bounded transformation pipeline—not just a cached response. A persisted plan may also
+contain the constrained `wasm-core-v1` transform described below:
 
 ```bash
 curl http://localhost:3000/v1/persisted-apis \
@@ -252,8 +253,8 @@ npx pnpm@10.14.0 --filter @ai-interfaces/playground build
 ```
 
 The latest local verification completed successfully: type checking, all package and
-playground builds, and all 20 deterministic policy, runtime, catalog, persisted API,
-and security tests
+playground builds, and all 23 deterministic policy, runtime, catalog, persisted API,
+Wasm runtime, and security tests
 passed.
 
 When model behavior changes, set `OPENAI_API_KEY` and run `npx pnpm@10.14.0 test:llm`.

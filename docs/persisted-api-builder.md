@@ -99,6 +99,44 @@ another change.
 Set `published` to `false` in the same update shape to stop invocation while retaining
 the API and its history. Set it back to `true` with the latest version to republish.
 
+## Add a code-bearing transform
+
+Persisted plans can add a constrained Wasm step after the catalog query. The step is
+useful when the required response needs deterministic business logic that is more
+expressive than `pick` and `rename`, while still avoiding an LLM call at invocation time.
+The plan fragment below applies the `transform_i32` function from the checked-in
+[sample artifact](../examples/wasm-runtime/artifact.json) to `stock` and writes
+`stockWithBonus`:
+
+```json
+{
+  "version": 1,
+  "renderer": "json",
+  "search": {
+    "filters": [],
+    "sort": { "field": "name", "direction": "asc" },
+    "limit": 10,
+    "projection": ["id", "name", "stock"],
+    "cursor": null
+  },
+  "wasm": {
+    "version": 1,
+    "runtime": "wasm-core-v1",
+    "moduleBase64": "<base64 WebAssembly module>",
+    "entrypoint": "transform_i32",
+    "inputField": "stock",
+    "outputField": "stockWithBonus",
+    "timeoutMs": 100
+  }
+}
+```
+
+The server validates the artifact during the versioned update, executes the query for
+the authenticated tenant, applies the Wasm transform in a disposable worker, and then
+renders the resulting rows. The module cannot import host functions or access SQL,
+files, network, credentials, or tenant identity. This v1 contract is intentionally
+limited to one integer input and one integer output per row.
+
 ## Limits and security
 
 - Slugs contain lowercase letters, numbers, and single hyphens and are 3–80 characters.
