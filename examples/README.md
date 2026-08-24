@@ -25,6 +25,9 @@ export CENTRUM_API_KEY='paste-a-demo-key-here'
 The examples use `POST /v1/execute` for live LLM interpretation and
 `POST /v1/persisted-apis` plus `GET /v1/persisted/{slug}` for the cost-saving persisted
 path. Persisted API creation invokes the LLM once; subsequent invocation does not.
+The [Wasm runtime sample](wasm-runtime/README.md) demonstrates a persisted transform
+that contains executable code and produces a new field instead of replaying a stored
+response.
 
 ## Run an example
 
@@ -42,3 +45,4 @@ requires Node.js 24+.
 These clients are intentionally small HTTP examples. In production, add authentication
 between your users and Centrum, keep API keys in a secret manager, use HTTPS, handle
 timeouts and retries, and never accept a tenant ID from model-generated input.
+

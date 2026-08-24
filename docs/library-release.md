@@ -24,6 +24,12 @@ npm install @ai-interfaces/core @ai-interfaces/openai \
 The packages are intentionally separate so an application can replace the provider,
 catalog, or renderers without installing the reference server or playground.
 
+The published core package also exposes the constrained `wasm-core-v1` transform
+runtime used by persisted plans. It is deliberately narrower than a general-purpose
+plugin system: modules cannot import host capabilities, receive only bounded row values,
+and run with a deadline in a disposable worker. SQL and tenant access remain owned by
+the host application and catalog package.
+
 For non-TypeScript clients, run the reference server or your own HTTP wrapper and use
 the language samples in [examples/README.md](../examples/README.md). The wire contract
 is JSON over HTTP, so Python, JavaScript, Java, Go, Rust, and other languages do not
@@ -72,6 +78,12 @@ const response = await runtime.execute(
 );
 ```
 
+Persisted API management is implemented by the reference server. A consumer that wants
+the same behavior in another HTTP stack should persist a tenant-owned plan containing a
+validated catalog query, optional JSON pipeline or Wasm transform, and renderer, then
+invoke that plan without calling the provider. See the [persisted API guide](persisted-api-builder.md)
+and the [Wasm sample](../examples/wasm-runtime/README.md).
+
 This example demonstrates composition only. Before production, the application must
 implement authentication, rate limits, request validation, CORS, artifact download
 authorization, durable storage, secret management, and audit retention. Read
@@ -113,3 +125,4 @@ only non-private packages with public scoped access and provenance enabled.
 - Minor releases may add capabilities, types, and optional configuration.
 - Major releases may change runtime contracts, policy semantics, or security boundaries.
 - Published packages should share one version number per release train.
+
