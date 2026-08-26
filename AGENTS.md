@@ -35,6 +35,7 @@ scope, validation, data access, rendering, auditing, and the response contract.
 
 - `packages/core`: provider contract, runtime, policy, resources, delivery, errors.
 - `packages/openai`: OpenAI Responses API adapter using strict function tools.
+- `packages/google`: Google Gemini Interactions API adapter using typed function tools.
 - `packages/catalog`: tenant authentication, SQLite repository, product query AST.
 - `packages/renderers`: deterministic JSON and PDF delivery.
 - `apps/server`: Fastify public protocol and authenticated artifact downloads.
@@ -75,7 +76,8 @@ npx pnpm@10.14.0 build
 npx pnpm@10.14.0 test
 ```
 
-`pnpm test` requires `OPENAI_API_KEY` because behavioral validation must use a real LLM.
+`pnpm test` requires the API key for the configured `AI_PROVIDER` because behavioral
+validation must use a real LLM.
 Do not add a scripted or heuristic provider as a substitute for the live agent tests.
 Deterministic providers are acceptable only in narrowly scoped unit tests that prove a
 code-enforced security boundary, such as rejecting an out-of-order capability call.

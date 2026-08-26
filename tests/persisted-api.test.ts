@@ -288,7 +288,7 @@ function createJsonProvider(withTransform = false): AgentProvider & { calls: num
       this.calls += 1;
       if (this.calls % (withTransform ? 4 : 3) === 1) {
         return {
-          responseId: `response_${this.calls}`,
+          continuationToken: `response_${this.calls}`,
           model: "test-model",
           toolCalls: [
             {
@@ -308,7 +308,7 @@ function createJsonProvider(withTransform = false): AgentProvider & { calls: num
       const handleId = readHandle(input.toolResults);
       if (withTransform && this.calls % 4 === 2) {
         return {
-          responseId: `response_${this.calls}`,
+          continuationToken: `response_${this.calls}`,
           model: "test-model",
           toolCalls: [
             {
@@ -328,7 +328,7 @@ function createJsonProvider(withTransform = false): AgentProvider & { calls: num
       }
       if ((withTransform ? this.calls % 4 === 3 : this.calls % 3 === 2)) {
         return {
-          responseId: `response_${this.calls}`,
+          continuationToken: `response_${this.calls}`,
           model: "test-model",
           toolCalls: [
             {
@@ -340,7 +340,7 @@ function createJsonProvider(withTransform = false): AgentProvider & { calls: num
         };
       }
       return {
-        responseId: `response_${this.calls}`,
+        continuationToken: `response_${this.calls}`,
         model: "test-model",
         toolCalls: [
           {
@@ -361,4 +361,3 @@ function readHandle(results?: ToolResult[]) {
   }
   return String(output.handleId);
 }
-

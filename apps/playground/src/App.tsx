@@ -27,6 +27,28 @@ type Envelope = {
   error?: { code: string; message: string };
 };
 
+type PersistedApi = {
+  id: string;
+  slug: string;
+  instruction: string;
+  plan: unknown;
+  responseBody: Array<Record<string, unknown>>;
+  version: number;
+  published: boolean;
+  invokeUrl: string;
+  createdAt: string;
+  updatedAt: string;
+};
+
+type PersistedEnvelope = {
+  requestId: string;
+  status: "completed" | "failed";
+  api?: PersistedApi;
+  error?: { code: string; message: string };
+};
+
+type PersistedApiSummary = Pick<PersistedApi, "slug" | "version" | "published" | "createdAt" | "updatedAt">;
+
 const examples = [
   "Return my in-stock products over €20, sorted by price descending, 5 per page, as JSON.",
   "Create a PDF containing my active products sorted alphabetically.",
@@ -46,6 +68,13 @@ export function App() {
   const [activeTab, setActiveTab] = useState<"preview" | "trace" | "raw">("preview");
   const [loading, setLoading] = useState(false);
   const [continuationToken, setContinuationToken] = useState<string | null>(null);
+  const [persistedSlug, setPersistedSlug] = useState("featured-products");
+  const [persistedApi, setPersistedApi] = useState<PersistedApi | null>(null);
+  const [persistedApis, setPersistedApis] = useState<PersistedApiSummary[]>([]);
+  const [selectedPersistedSlug, setSelectedPersistedSlug] = useState("");
+  const [persistedResult, setPersistedResult] = useState<Array<Record<string, unknown>> | null>(null);
+  const [persistedError, setPersistedError] = useState<{ code: string; message: string } | null>(null);
+  const [persisting, setPersisting] = useState(false);
 
   useEffect(() => {
     fetch(apiUrl("/v1/demo/keys"))
@@ -56,6 +85,21 @@ export function App() {
       })
       .catch(() => setKeys([]));
   }, []);
+
+  useEffect(() => {
+    if (!selectedKey) return;
+    fetch(apiUrl("/v1/persisted-apis"), { headers: { "x-ai-interface-key": selectedKey } })
+      .then((response) => response.json())
+      .then((body: { apis?: PersistedApiSummary[] }) => {
+        const apis = body.apis ?? [];
+        setPersistedApis(apis);
+        setSelectedPersistedSlug(apis[0]?.slug ?? "");
+      })
+      .catch(() => setPersistedApis([]));
+    setPersistedApi(null);
+    setPersistedResult(null);
+    setPersistedError(null);
+  }, [selectedKey]);
 
   const rows = result?.output?.kind === "data" ? result.output.data ?? [] : [];
   const columns = useMemo(() => Object.keys(rows[0] ?? {}), [rows]);
@@ -128,6 +172,90 @@ export function App() {
     }
   }
 
+  async function persistInterface() {
+    if (!selectedKey || !instruction.trim() || !persistedSlug.trim()) return;
+    setPersisting(true);
+    setPersistedError(null);
+    setPersistedResult(null);
+    try {
+      const response = await fetch(apiUrl("/v1/persisted-apis"), {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          "x-ai-interface-key": selectedKey,
+          "idempotency-key": `playground-${persistedSlug.trim()}`,
+        },
+        body: JSON.stringify({
+          slug: persistedSlug.trim(),
+          instruction,
+          published: true,
+        }),
+      });
+      const body = (await response.json()) as PersistedEnvelope;
+      if (!response.ok || !body.api) {
+        throw new Error(body.error?.message ?? `Persistence failed with status ${response.status}.`);
+      }
+      setPersistedApi(body.api);
+      setSelectedPersistedSlug(body.api.slug);
+      setPersistedApis((current) => [body.api!, ...current.filter((item) => item.slug !== body.api!.slug)]);
+    } catch (error) {
+      setPersistedError({
+        code: "PERSISTENCE_FAILED",
+        message: error instanceof Error ? error.message : "The interface could not be persisted.",
+      });
+    } finally {
+      setPersisting(false);
+    }
+  }
+
+  async function loadPersistedInterface() {
+    if (!selectedKey || !selectedPersistedSlug) return;
+    setPersisting(true);
+    setPersistedError(null);
+    try {
+      const response = await fetch(apiUrl(`/v1/persisted-apis/${selectedPersistedSlug}`), {
+        headers: { "x-ai-interface-key": selectedKey },
+      });
+      const body = (await response.json()) as PersistedEnvelope;
+      if (!response.ok || !body.api) {
+        throw new Error(body.error?.message ?? `The persisted API could not be loaded (status ${response.status}).`);
+      }
+      setPersistedApi(body.api);
+      setPersistedResult(null);
+    } catch (error) {
+      setPersistedError({
+        code: "PERSISTED_LOAD_FAILED",
+        message: error instanceof Error ? error.message : "The persisted API could not be loaded.",
+      });
+    } finally {
+      setPersisting(false);
+    }
+  }
+
+  async function invokePersistedInterface() {
+    if (!selectedKey || !persistedApi) return;
+    setPersisting(true);
+    setPersistedError(null);
+    try {
+      const response = await fetch(apiUrl(persistedApi.invokeUrl), {
+        headers: { "x-ai-interface-key": selectedKey },
+      });
+      const body = (await response.json()) as Array<Record<string, unknown>> | { error?: { message: string } };
+      if (!response.ok || !Array.isArray(body)) {
+        const message = !Array.isArray(body) ? body.error?.message : undefined;
+        throw new Error(message ?? `Persisted invocation failed with status ${response.status}.`);
+      }
+      setPersistedResult(body);
+    } catch (error) {
+      setPersistedError({
+        code: "PERSISTED_INVOCATION_FAILED",
+        message: error instanceof Error ? error.message : "The persisted API could not be invoked.",
+      });
+    } finally {
+      setPersisting(false);
+    }
+  }
+
   return (
     <main>
       <header className="topbar">
@@ -185,6 +313,22 @@ export function App() {
           <button className="execute" type="button" disabled={loading || !selectedKey} onClick={() => execute()}>
             {loading ? "Executing…" : "Execute interface"} <span>→</span>
           </button>
+          <div className="persist-controls">
+            <label htmlFor="persisted-slug">Persist as API</label>
+            <div className="persist-row">
+              <input
+                id="persisted-slug"
+                value={persistedSlug}
+                onChange={(event) => setPersistedSlug(event.target.value.toLowerCase().replace(/[^a-z0-9-]/g, "-"))}
+                placeholder="featured-products"
+                spellCheck={false}
+              />
+              <button type="button" onClick={persistInterface} disabled={persisting || loading || !selectedKey || !persistedSlug.trim()}>
+                {persisting && !persistedApi ? "Saving…" : "Persist"}
+              </button>
+            </div>
+            <p className="persist-note">Creates a governed, reusable API. Later invocations do not call the model.</p>
+          </div>
           {!keys.length && <p className="hint">Start the API server to load local tenant keys.</p>}
         </article>
 
@@ -252,6 +396,51 @@ export function App() {
         </article>
       </section>
 
+      <section className="persistence panel">
+        <div className="panel-heading">
+          <div><span className="step">03</span><h2>Reuse without the model</h2></div>
+          {persistedApi && <code>v{persistedApi.version} · {persistedApi.slug}</code>}
+        </div>
+        {!persistedApi && !persistedError && (
+          <p className="persist-empty">Persist the current instruction to turn it into a tenant-scoped API you can invoke repeatedly.</p>
+        )}
+        {!persistedApi && persistedApis.length > 0 && (
+          <div className="persist-load">
+            <label htmlFor="saved-api">Load an existing persisted API</label>
+            <div className="persist-row">
+              <select id="saved-api" value={selectedPersistedSlug} onChange={(event) => setSelectedPersistedSlug(event.target.value)}>
+                {persistedApis.map((api) => <option key={api.slug} value={api.slug}>{api.slug} · v{api.version}</option>)}
+              </select>
+              <button type="button" onClick={loadPersistedInterface} disabled={persisting || !selectedPersistedSlug}>Load</button>
+            </div>
+          </div>
+        )}
+        {persistedError && (
+          <div className="error-card"><span>{persistedError.code}</span><p>{persistedError.message}</p></div>
+        )}
+        {persistedApi && (
+          <div className="persisted-content">
+            <div className="persisted-meta">
+              <span><b>{persistedApi.slug}</b> is published</span>
+              <span>Created {new Date(persistedApi.createdAt).toLocaleString("en-SE")}</span>
+              <button type="button" onClick={invokePersistedInterface} disabled={persisting || !selectedKey}>
+                {persisting ? "Invoking…" : "Invoke persisted API"} →
+              </button>
+            </div>
+            <div className="persisted-grid">
+              <div>
+                <label>Compiled plan</label>
+                <pre>{JSON.stringify(persistedApi.plan, null, 2)}</pre>
+              </div>
+              <div>
+                <label>Latest deterministic response</label>
+                {persistedResult ? <pre>{JSON.stringify(persistedResult, null, 2)}</pre> : <p className="persist-empty">Invoke the saved API to load current tenant data without an LLM call.</p>}
+              </div>
+            </div>
+          </div>
+        )}
+      </section>
+
       <section className="principles">
         <p><b>01</b> Intent is probabilistic</p>
         <p><b>02</b> Authority is deterministic</p>
@@ -299,4 +488,3 @@ function format(value: unknown) {
   if (typeof value === "number") return value.toLocaleString("en-SE");
   return String(value ?? "");
 }
-

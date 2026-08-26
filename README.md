@@ -67,7 +67,7 @@ For a runnable code-bearing transform, see the [Wasm runtime sample](examples/wa
 
 - Node.js 24 LTS or newer
 - Git
-- An OpenAI API key with access to the configured model
+- A Google AI Studio Gemini API key or an OpenAI API key with access to the configured model
 
 Clone and install the pinned pnpm version:
 
@@ -78,9 +78,10 @@ npx pnpm@10.14.0 install
 cp .env.example .env
 ```
 
-Set `OPENAI_API_KEY` in `.env` before starting the server or running live-model tests.
-For local playground key discovery, leave `AI_ENABLE_DEMO_KEYS=true`. The checked-in
-example contains no credentials. Never commit `.env` or anything under `.data/`.
+Choose `AI_PROVIDER=google` with `GEMINI_API_KEY`, or `AI_PROVIDER=openai` with
+`OPENAI_API_KEY`, in `.env`. For local playground key discovery, leave
+`AI_ENABLE_DEMO_KEYS=true`. The checked-in example contains no credentials. Never
+commit `.env` or anything under `.data/`.
 
 Seed two isolated demo tenants and start the API and playground:
 
@@ -100,9 +101,11 @@ npx pnpm@10.14.0 demo:check
 For a split deployment (Render API + Cloudflare Pages playground), see
 [`docs/demo-hosting.md`](docs/demo-hosting.md) and [`render.yaml`](render.yaml).
 
-The prototype always uses a real LLM through the OpenAI Responses API. It intentionally
-has no scripted or non-LLM runtime fallback. The default model is `gpt-5.6-terra` with
-medium reasoning; override it with `OPENAI_MODEL`.
+The prototype always uses a real LLM and has no scripted or non-LLM runtime fallback.
+Google uses the Gemini Interactions API and defaults to `gemini-3.5-flash-lite` (override
+with `GOOGLE_MODEL`). OpenAI uses the Responses API and defaults to `gpt-5.6-terra`
+with medium reasoning (override with `OPENAI_MODEL`). Provider adapters are ordinary
+Node.js packages and do not require Vercel or another hosting platform.
 
 ### Contributor agent setup
 
@@ -227,6 +230,7 @@ idempotency, editing, publication, and current limitations.
 | --- | --- |
 | `@ai-interfaces/core` | Runtime, provider contract, policy, resources, errors, delivery |
 | `@ai-interfaces/openai` | OpenAI Responses API provider |
+| `@ai-interfaces/google` | Google Gemini Interactions API provider |
 | `@ai-interfaces/catalog` | SQLite repository, authentication, product capability |
 | `@ai-interfaces/renderers` | Deterministic JSON and PDF delivery |
 | `apps/server` | Fastify reference API |
@@ -265,9 +269,10 @@ playground builds, and all 23 deterministic policy, runtime, catalog, persisted 
 Wasm runtime, and security tests
 passed.
 
-When model behavior changes, set `OPENAI_API_KEY` and run `npx pnpm@10.14.0 test:llm`.
-The live suite fails clearly when the key is absent. `evals/product-requests.json`
-contains 30 representative and adversarial requests for broader live-model evaluation.
+When model behavior changes, select `AI_PROVIDER`, configure its API key, and run
+`npx pnpm@10.14.0 test:llm`. The live suite fails clearly when the selected provider's
+key is absent. `evals/product-requests.json` contains 30 representative and adversarial
+requests for broader live-model evaluation.
 
 For work that does not change agent behavior, run the package build before the focused
 unit suite:
@@ -296,8 +301,7 @@ The project roadmap, adoption goals, and public demo-hosting decision are tracke
 ## Status
 
 This is a `0.1.0` research prototype. Writes with approval, persistent sessions,
-background jobs, more renderers, PostgreSQL, and additional providers are intentionally
-outside v1.
+background jobs, more renderers, PostgreSQL, and additional provider adapters are
+intentionally outside v1.
 
 Licensed under Apache 2.0.
-

@@ -15,6 +15,7 @@
     "paths": {
       "@ai-interfaces/core": ["packages/core/src/index.ts"],
       "@ai-interfaces/openai": ["packages/openai/src/index.ts"],
+      "@ai-interfaces/google": ["packages/google/src/index.ts"],
       "@ai-interfaces/catalog": ["packages/catalog/src/index.ts"],
       "@ai-interfaces/renderers": ["packages/renderers/src/index.ts"]
     }

@@ -53,7 +53,7 @@ export interface ProviderUsage {
 }
 
 export interface ProviderTurn {
-  responseId: string;
+  continuationToken: string;
   toolCalls: ToolCall[];
   model: string;
   usage?: ProviderUsage;
@@ -64,7 +64,7 @@ export interface AgentProvider {
   run(input: {
     instruction: string;
     tools: ToolDefinition[];
-    previousResponseId?: string;
+    continuationToken?: string;
     toolResults?: ToolResult[];
     safetyIdentifier: string;
     signal: AbortSignal;

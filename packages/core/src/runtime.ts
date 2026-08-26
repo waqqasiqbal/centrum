@@ -46,7 +46,7 @@ export class AIInterfaceRuntime {
     const traceEvents: TraceEvent[] = [];
     const used = new Set<string>();
     let usage: ProviderUsage = {};
-    let previousResponseId: string | undefined;
+    let continuationToken: string | undefined;
     let toolResults: ToolResult[] | undefined;
     let model = this.#provider.name;
     let phase: "search" | "render" | "deliver" = "search";
@@ -65,7 +65,7 @@ export class AIInterfaceRuntime {
           safetyIdentifier: createHash("sha256")
             .update(`${principal.tenantId}:${principal.id}`)
             .digest("hex"),
-          previousResponseId,
+          continuationToken,
           toolResults,
           signal: controller.signal,
           tools: phaseCapabilities.map(({ name, description, parameters }) => ({
@@ -81,7 +81,7 @@ export class AIInterfaceRuntime {
           name: this.#provider.name,
           durationMs: Math.round(performance.now() - modelStarted),
         });
-        previousResponseId = turn.responseId;
+        continuationToken = turn.continuationToken;
 
         if (turn.toolCalls.length === 0) {
           throw new AIInterfaceError(

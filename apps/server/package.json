@@ -4,12 +4,13 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "tsx --env-file-if-exists=../../.env src/index.ts",
-    "start": "tsx --env-file-if-exists=../../.env src/index.ts"
+    "dev": "cd ../.. && tsx --env-file-if-exists=.env apps/server/src/index.ts",
+    "start": "cd ../.. && tsx --env-file-if-exists=.env apps/server/src/index.ts"
   },
   "dependencies": {
     "@ai-interfaces/catalog": "workspace:*",
     "@ai-interfaces/core": "workspace:*",
+    "@ai-interfaces/google": "workspace:*",
     "@ai-interfaces/openai": "workspace:*",
     "@ai-interfaces/renderers": "workspace:*",
     "@fastify/cors": "^11.1.0",

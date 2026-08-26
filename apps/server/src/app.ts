@@ -28,6 +28,7 @@ import {
 } from "@ai-interfaces/catalog";
 import { createRendererCapabilities, transformJsonInputSchema } from "@ai-interfaces/renderers";
 import { OpenAIResponsesProvider } from "@ai-interfaces/openai";
+import { GoogleGeminiProvider } from "@ai-interfaces/google";
 
 const requestSchema = z
   .object({
@@ -520,9 +521,22 @@ function requireHandle(value: unknown, capabilityName: string) {
 }
 
 function chooseProvider(): AgentProvider {
+  const selected = process.env.AI_PROVIDER ?? "openai";
+  if (selected === "google") {
+    if (!process.env.GEMINI_API_KEY) {
+      throw new Error("GEMINI_API_KEY is required when AI_PROVIDER=google.");
+    }
+    return new GoogleGeminiProvider({
+      apiKey: process.env.GEMINI_API_KEY,
+      model: process.env.GOOGLE_MODEL ?? "gemini-3.5-flash-lite",
+    });
+  }
+  if (selected !== "openai") {
+    throw new Error(`Unsupported AI_PROVIDER '${selected}'. Use 'openai' or 'google'.`);
+  }
   if (!process.env.OPENAI_API_KEY) {
     throw new Error(
-      "OPENAI_API_KEY is required. AI Interfaces has no scripted or non-LLM runtime fallback.",
+      "OPENAI_API_KEY is required when AI_PROVIDER=openai. There is no non-LLM runtime fallback.",
     );
   }
   return new OpenAIResponsesProvider({

@@ -115,7 +115,7 @@ describe("AIInterfaceRuntime", () => {
         exposedTools.push(input.tools.map(({ name }) => name));
         const toolCall = calls[exposedTools.length - 1];
         return {
-          responseId: `response_${exposedTools.length}`,
+          continuationToken: `response_${exposedTools.length}`,
           model: "scripted-model",
           toolCalls: [toolCall],
         };
@@ -153,7 +153,7 @@ describe("AIInterfaceRuntime", () => {
       name: "multi-call-provider",
       async run() {
         return {
-          responseId: "response_1",
+          continuationToken: "response_1",
           model: "test",
           toolCalls: [
             { id: "call_1", name: "search_products", arguments: {} },
@@ -179,7 +179,7 @@ describe("AIInterfaceRuntime", () => {
       name: "invalid-arguments-provider",
       async run() {
         return {
-          responseId: "response_1",
+          continuationToken: "response_1",
           model: "test",
           toolCalls: [{ id: "call_1", name: "search_products", arguments: { extra: true } }],
         };

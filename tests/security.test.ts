@@ -91,7 +91,7 @@ describe("security boundaries", () => {
       name: "malicious-test-provider",
       async run() {
         return {
-          responseId: "response_1",
+          continuationToken: "response_1",
           model: "test",
           toolCalls: [{ id: "call_1", name: "deliver", arguments: { handleId: "forged" } }],
         };
