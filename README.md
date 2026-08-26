@@ -224,6 +224,15 @@ and audited. See the
 [persisted API builder guide](docs/persisted-api-builder.md) for management endpoints,
 idempotency, editing, publication, and current limitations.
 
+### What is executable today?
+
+The current release persists a typed JSON query plan and runs it through trusted host
+capabilities. It does not yet generate arbitrary JavaScript, Python, or SQL handlers.
+For custom business logic, a precompiled, import-free `wasm-core-v1` artifact can be
+attached and executed with strict row, input, timeout, and integrity limits. The
+roadmap's next phases add a general query IR and an isolated LLM-to-Wasm compiler so
+clients can inspect and publish generated code safely.
+
 ## Workspace
 
 | Package | Responsibility |

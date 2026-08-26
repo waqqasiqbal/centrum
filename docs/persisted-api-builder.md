@@ -8,6 +8,23 @@ Use `POST /v1/execute` when each request needs fresh interpretation. Use a persi
 when a client wants a repeatable API over its own data without paying for model
 interpretation on every request.
 
+## Current artifact versus the target vision
+
+Today, creation compiles the LLM's validated tool calls into a typed JSON plan. The
+plan describes an allowlisted catalog query, an optional `pick`/`rename` pipeline, and
+the JSON renderer. Centrum executes that plan with trusted host code, injecting tenant
+scope and compiling the query into parameterized SQL. It does not persist a model
+response as a cache, and it does not execute arbitrary generated JavaScript, Python, or
+raw SQL.
+
+The current code-bearing option is an explicitly supplied, precompiled
+`wasm-core-v1` module. It runs in an import-free worker and can only perform the
+documented bounded transform. The planned executable API pipeline will let the LLM
+author a typed query IR, source code, schemas, and tests; an isolated compiler will
+produce the Wasm artifact, which a client can review and publish. See the
+[executable API roadmap](executable-api-roadmap.md) and
+[ADR 0004](adr/0004-executable-api-artifacts.md).
+
 ## Build an API with the LLM
 
 Creation requires an API key with `manage_persisted_apis` and an idempotency key.
@@ -154,4 +171,3 @@ limited to one integer input and one integer output per row.
 
 See [ADR 0003](adr/0003-persisted-api-builder.md) for the authority, idempotency,
 versioning, and audit design.
-
