@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { Worker } from "node:worker_threads";
 import { z } from "zod";
 import { AIInterfaceError } from "./errors.js";
@@ -13,6 +14,9 @@ export const wasmTransformArtifactSchema = z
     inputField: z.string().regex(/^[A-Za-z][A-Za-z0-9_]{0,39}$/),
     outputField: z.string().regex(/^[A-Za-z][A-Za-z0-9_]{0,39}$/),
     timeoutMs: z.number().int().min(1).max(1_000).default(100),
+    // Optional content address for artifacts produced by a future compiler.
+    // When present, the runtime verifies the bytes before instantiation.
+    sha256: z.string().length(64).regex(/^[a-f0-9]{64}$/).optional(),
   })
   .strict();
 
@@ -34,6 +38,12 @@ export async function executeWasmTransform(
     throw new AIInterfaceError("RESULT_LIMIT_EXCEEDED", "Wasm transformations are limited to 1,000 rows.", 413);
   }
   const bytes = Buffer.from(artifact.moduleBase64, "base64");
+  if (artifact.sha256) {
+    const actualSha256 = createHash("sha256").update(bytes).digest("hex");
+    if (actualSha256 !== artifact.sha256) {
+      throw new AIInterfaceError("INVALID_REQUEST", "The Wasm artifact integrity check failed.", 400);
+    }
+  }
   let module: WebAssembly.Module;
   try {
     module = await WebAssembly.compile(bytes);
@@ -106,4 +116,3 @@ async function runInWorker(
     });
   });
 }
-
