@@ -289,6 +289,9 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for capability-authoring expectations and
 
 The project roadmap, adoption goals, and public demo-hosting decision are tracked in
 [`ROADMAP.md`](ROADMAP.md) and [`docs/demo-hosting.md`](docs/demo-hosting.md).
+The executable API vision and phased implementation are tracked in
+[`docs/executable-api-roadmap.md`](docs/executable-api-roadmap.md) and
+[`docs/adr/0004-executable-api-artifacts.md`](docs/adr/0004-executable-api-artifacts.md).
 
 ## Community
 
