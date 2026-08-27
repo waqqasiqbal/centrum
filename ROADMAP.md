@@ -1,14 +1,34 @@
 # Centrum roadmap
 
-Centrum turns an LLM request into a governed, editable API that can later run
-without an LLM. This roadmap keeps the project focused on proving that promise,
-making the repository easy to adopt, and building trust with open-source users.
+Centrum lets companies offer clients a governed environment where they can use an
+LLM to create, test, publish, revise, and run APIs around approved data. This
+roadmap keeps the project focused on proving that flexible client-programmable
+model, making the repository easy to adopt, and building trust with open-source
+users.
+
+The day-to-day execution backlog is maintained in [`TODO.md`](TODO.md). Update the
+backlog when work starts or finishes, and update this roadmap when priorities,
+phases, or architectural direction change.
+
+## Product vision
+
+A company provides the data environment, capabilities, policies, and runtime.
+Each client can then generate multiple APIs for changing business needs without
+waiting for the company to design and ship a new fixed integration every time.
+Centrum governs what clients may access and turns approved generated definitions
+into independently runnable API versions.
+
+The generated API is not a one-time response or a permanent contract frozen at
+the first request. It is a client-owned, versioned capability that can be edited,
+tested, published, rolled back, and retired while remaining inside the provider's
+security and data policies.
 
 ## North-star outcome
 
-An engineer can describe a data workflow once, inspect the generated query and
-logic, persist it as a tenant-owned API, and invoke it repeatedly with predictable
-cost, latency, authorization, and audit behavior.
+A platform provider can onboard a client to a governed data environment. The client
+can describe new workflows whenever needed, inspect the generated query and logic,
+persist each approved workflow as a tenant-owned API, and invoke it repeatedly with
+predictable cost, latency, authorization, and audit behavior.
 
 ## Current baseline
 
@@ -20,11 +40,20 @@ cost, latency, authorization, and audit behavior.
   tenant scoping, and audit history.
 - Constrained `wasm-core-v1` transforms that run without host imports in a disposable
   worker.
+- React playground deployed to Vercel as `centrum-playground.vercel.app`.
+- Backend and database remain to be deployed; the current reference database is
+  local SQLite.
+- The product direction is client-programmable APIs in provider-owned environments,
+  not a catalog of fixed APIs created once by the provider.
 
 ## Phase 1 — make the promise obvious (next 30 days)
 
-- [ ] Publish a one-command local demo that shows provider calls changing from one to
+- [x] Publish a one-command local demo that shows provider calls changing from one to
   zero after API persistence.
+- [ ] Demonstrate one provider environment serving multiple clients, with each
+  client creating and invoking more than one persisted API.
+- [ ] Show an existing client API being edited, versioned, republished, and rolled
+  back without changing the provider's base environment.
 - [x] Build a flagship multi-table analytics example with joins, aggregation, and a
   deterministic business rule. See [`examples/analytics`](examples/analytics/README.md).
 - [ ] Add a visual plan inspector showing query, transformation, renderer, version, and
@@ -32,12 +61,20 @@ cost, latency, authorization, and audit behavior.
 - [ ] Add `ROADMAP.md`, release notes, issue templates, PR template, and GitHub
   Discussions onboarding.
 - [ ] Clarify the Centrum/`@ai-interfaces/*` naming relationship in all package docs.
-- [ ] Publish the first working public demo using the hosting plan in
+- [x] Publish the first working public frontend demo using the hosting plan in
   [`docs/demo-hosting.md`](docs/demo-hosting.md).
+- [ ] Deploy the Fastify API and connect the public playground to it.
+- [ ] Add a client-facing workflow for creating APIs on demand from natural-language
+  requirements, subject to provider-defined capabilities and policies.
 
 ## Phase 2 — remove adoption friction (days 31–60)
 
-- [ ] Add a PostgreSQL catalog adapter while preserving the current read-only policy.
+- [ ] Add a PostgreSQL database adapter while preserving the current read-only policy.
+- [ ] Move the hosted reference deployment from local SQLite to managed PostgreSQL.
+- [ ] Separate provider environment configuration from client API definitions and
+  versions.
+- [ ] Add per-client namespaces, quotas, permissions, and audit views.
+- [ ] Add database backup, restore, migration, and credential-rotation guidance.
 - [ ] Add a generated OpenAPI description and a small Python client for the HTTP API.
 - [ ] Add a cost and latency comparison to the flagship demo.
 - [ ] Add CodeQL or equivalent static analysis, dependency review, secret scanning,
@@ -59,6 +96,8 @@ cost, latency, authorization, and audit behavior.
 ## Later, deliberately not now
 
 - Hosted multi-tenant production service
+- Managed database provisioning and billing for customer environments
+- Provider-controlled environment policies exposed as unrestricted client authority
 - Public unauthenticated persisted APIs
 - Arbitrary JavaScript execution
 - Model-authored raw SQL or unrestricted database access
@@ -79,4 +118,3 @@ Track adoption rather than stars alone:
 
 This document is intentionally actionable. When new work does not support the north-star
 outcome or a phase goal, open a roadmap discussion before adding it to the main path.
-
